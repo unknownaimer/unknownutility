@@ -26,17 +26,13 @@ jobs:
         shell: pwsh
         run: ./tools/Test-Logic.ps1 -SkipNetwork
 
-      # While the beta lasts, set the repository variable GATE_URL (Settings > Secrets and variables >
-      # Actions > Variables) to the gate's origin, e.g. https://unknowntweaks-gate.unknownutility.workers.dev.
-      # With it set, every push produces a -Beta build (no licence, gated at start-up). Delete the
-      # variable when the beta ends and the next push produces the public MIT build.
       # PRIVATE BETA. While GATE_URL below is non-empty every build is a -Beta build: no licence in
       # the header, and it refuses to run unless the gate says "ok". To go public, blank this one
       # line; the next build is the MIT public one and calls nothing.
       - name: Compile
         shell: pwsh
         env:
-          GATE_URL: https://unknowntweaks-gate.unknownutility.workers.dev
+          GATE_URL: https://unknowntweaks-gate.unknowntweaks.workers.dev
         run: |
           $p = @{ Owner = '${{ github.repository_owner }}'; Repo = '${{ github.event.repository.name }}' }
           if ($env:GATE_URL) {

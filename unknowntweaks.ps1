@@ -10,10 +10,10 @@
 
 $sync = [Hashtable]::Synchronized(@{})
 $sync.version    = '0.0.67'
-$sync.url        = 'https://unknowntweaks-gate.unknownutility.workers.dev/ut'
+$sync.url        = 'https://unknowntweaks-gate.unknowntweaks.workers.dev/ut'
 $sync.repo       = 'https://github.com/unknownaimer/unknownutility'
 $sync.beta       = $true
-$sync.statusUrl  = 'https://unknowntweaks-gate.unknownutility.workers.dev/status'
+$sync.statusUrl  = 'https://unknowntweaks-gate.unknowntweaks.workers.dev/status'
 $sync.betaTester = ''
 $sync.configs    = @{}
 

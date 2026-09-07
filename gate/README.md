@@ -88,7 +88,7 @@ Cloudflare > **Storage & Databases** > **KV** > `unknowntweaks-gate` > **KV pair
 Give that tester exactly this, and nothing else:
 
 ```
-irm "https://unknowntweaks-gate.unknownutility.workers.dev/ut?k=Ab3xK9..." | iex
+irm "https://unknowntweaks-gate.unknowntweaks.workers.dev/ut?k=Ab3xK9..." | iex
 ```
 
 **Revoke one tester:** edit that entry's value to `{"name":"tester one","revoked":true}`.

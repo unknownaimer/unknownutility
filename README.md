@@ -5,7 +5,7 @@ clean dark interface, live CPU / RAM / GPU / disk / network graphs on the left, 
 have a documented mechanism. Everything is reversible. Nothing is paywalled, nothing is hidden.
 
 ```powershell
-irm "https://unknowntweaks-gate.unknownutility.workers.dev/ut?k=YOUR-KEY" | iex
+irm "https://unknowntweaks-gate.unknowntweaks.workers.dev/ut?k=YOUR-KEY" | iex
 ```
 
 Open PowerShell (no admin needed, it asks for elevation itself), paste, press Enter.
@@ -199,7 +199,7 @@ tools/       Test-Syntax.ps1 (static), Test-Logic.ps1 (behaviour), Test-Startup.
 .\tools\Test-Syntax.ps1          # parses everything, flags PowerShell 7-only syntax, checks JSON/XAML
 .\tools\Test-Logic.ps1           # behaviour, including a live ping of Epic's region hosts
 .\tools\Test-Startup.ps1         # builds the window and runs the monitor for real, then closes it
-.\Compile.ps1 -Beta -StatusUrl https://unknowntweaks-gate.unknownutility.workers.dev/status   # private beta; drop both for the public build
+.\Compile.ps1 -Beta -StatusUrl https://unknowntweaks-gate.unknowntweaks.workers.dev/status   # private beta; drop both for the public build
 .\unknowntweaks.ps1
 ```
 
