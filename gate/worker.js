@@ -70,6 +70,11 @@ export default {
     if (!src.ok) { log('upstream ' + src.status); return reply(502, 'upstream unavailable'); }
     let text = await src.text();
 
+    // Never hand out a public build through the gate. If the workflow rebuilt without GATE_URL set,
+    // the committed file carries the MIT header and $sync.beta = $false; serving that would make a
+    // leak a permitted redistribution. Fail closed until the beta build is back.
+    if (!/^\$sync\.beta\s*=\s*\$true\s*$/m.test(text)) { log('refused: committed file is not a -Beta build'); return reply(503, 'beta build not available yet'); }
+
     // Stamp the three marker lines Compile.ps1 -Beta emits. A function replacement so a tester
     // name containing "$" cannot be interpreted as a replacement pattern.
     const psq = (s) => String(s).replace(/'/g, "''");

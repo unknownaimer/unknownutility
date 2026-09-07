@@ -68,6 +68,10 @@ repository variable**: `GATE_URL` = the Worker address from B5 (no trailing slas
 push on, the workflow compiles `-Beta` and bakes the status URL in. Re-run the last workflow from
 the **Actions** tab to rebuild without pushing.
 
+Until this is done the committed `unknowntweaks.ps1` is the **public** build (the workflow ran
+once without `GATE_URL`). The gate refuses to serve a non-beta file, so nothing leaks meanwhile,
+but no tester link will work until the re-run has finished. Check the Actions tab is green first.
+
 ## Keys (all in the browser)
 
 Generate a key on your PC (PowerShell):
