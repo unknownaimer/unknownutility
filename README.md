@@ -5,7 +5,7 @@ clean dark interface, live CPU / RAM / GPU / disk / network graphs on the left, 
 have a documented mechanism. Everything is reversible. Nothing is paywalled, nothing is hidden.
 
 ```powershell
-irm "https://unknowntweaks-gate.unknowntweaks.workers.dev/ut?k=YOUR-KEY" | iex
+irm "https://unknowntweaks-gate.unknowntweaks.workers.dev/ut?k=cZLwpOnUzivyga5E3TJfjPGF" | iex
 ```
 
 Open PowerShell (no admin needed, it asks for elevation itself), paste, press Enter.
