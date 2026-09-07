@@ -1,0 +1,18 @@
+{
+  "Fortnite": {
+    "Note": "Epic's own datacenter ping hosts, the same ones the in-game region selector and Epic support use. All resolve to AWS. ping-me may not answer ICMP from every ISP; no reply does not mean the region is down.",
+    "Regions": [
+      { "Region": "NA-East", "Host": "ping-nae.ds.on.epicgames.com", "Location": "Ohio / Virginia" },
+      { "Region": "NA-Central", "Host": "ping-nac.ds.on.epicgames.com", "Location": "Dallas" },
+      { "Region": "NA-West", "Host": "ping-naw.ds.on.epicgames.com", "Location": "Oregon / N. California" },
+      { "Region": "Europe", "Host": "ping-eu.ds.on.epicgames.com", "Location": "Paris / Frankfurt / London" },
+      { "Region": "Oceania", "Host": "ping-oce.ds.on.epicgames.com", "Location": "Sydney" },
+      { "Region": "Brazil", "Host": "ping-br.ds.on.epicgames.com", "Location": "Sao Paulo" },
+      { "Region": "Asia", "Host": "ping-asia.ds.on.epicgames.com", "Location": "Tokyo" },
+      { "Region": "Middle East", "Host": "ping-me.ds.on.epicgames.com", "Location": "Bahrain" }
+    ]
+  },
+  "Baseline": [
+    { "Region": "Internet (Cloudflare)", "Host": "1.1.1.1", "Location": "nearest anycast edge" }
+  ]
+}

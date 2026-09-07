@@ -1,0 +1,1077 @@
+{
+  "UTGameDVR": {
+    "Content": "Game DVR / background recording off",
+    "Description": "Stops Windows from recording gameplay in the background (Game Bar capture). Removes a capture and encode pipeline that runs while you play. Microsoft ships a policy for exactly this.",
+    "Evidence": "Game DVR is a real capture-and-encode pipeline that runs while you play. AllowGameDVR is the Group Policy Microsoft ships for exactly this (Microsoft Learn, GameDVR policy). Confidence: high.",
+    "Category": "Gaming",
+    "Tier": "safe",
+    "Recommended": true,
+    "Order": 10,
+    "registry": [
+      {
+        "Path": "HKCU:\\System\\GameConfigStore",
+        "Name": "GameDVR_Enabled",
+        "Type": "DWord",
+        "Value": "0",
+        "OriginalValue": "1"
+      },
+      {
+        "Path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\GameDVR",
+        "Name": "AppCaptureEnabled",
+        "Type": "DWord",
+        "Value": "0",
+        "OriginalValue": "1"
+      },
+      {
+        "Path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\GameDVR",
+        "Name": "AllowGameDVR",
+        "Type": "DWord",
+        "Value": "0",
+        "OriginalValue": "<RemoveEntry>"
+      }
+    ]
+  },
+  "UTMouseAccel": {
+    "Content": "Mouse acceleration off (Enhance pointer precision)",
+    "Description": "Sets MouseSpeed and both thresholds to 0 so pointer distance no longer depends on how fast you move. Most games use raw input already; this fixes the desktop, menus and games that do not. Takes effect after sign-out.",
+    "Evidence": "MouseSpeed, MouseThreshold1 and MouseThreshold2 are the values behind Enhance pointer precision, and 0/0/0 is what unticking it writes. They are REG_SZ; tools that write them as DWORD are wrong. Confidence: high.",
+    "Category": "Input",
+    "Tier": "safe",
+    "Recommended": true,
+    "Order": 20,
+    "SignOut": true,
+    "registry": [
+      {
+        "Path": "HKCU:\\Control Panel\\Mouse",
+        "Name": "MouseSpeed",
+        "Type": "String",
+        "Value": "0",
+        "OriginalValue": "1"
+      },
+      {
+        "Path": "HKCU:\\Control Panel\\Mouse",
+        "Name": "MouseThreshold1",
+        "Type": "String",
+        "Value": "0",
+        "OriginalValue": "6"
+      },
+      {
+        "Path": "HKCU:\\Control Panel\\Mouse",
+        "Name": "MouseThreshold2",
+        "Type": "String",
+        "Value": "0",
+        "OriginalValue": "10"
+      }
+    ]
+  },
+  "UTAccessibilityKeys": {
+    "Content": "Sticky / Toggle / Filter Keys shortcuts off",
+    "Description": "Stops the Shift x5, Num Lock 8s and Right Shift 8s pop-ups that steal focus mid-game. Accessibility features stay available from Settings.",
+    "Evidence": "Flags 510 to 506, 62 to 58 and 126 to 122 each clear one bit, the HOTKEYACTIVE flag, so only the keyboard shortcut goes and the features stay available in Settings. Verified arithmetically against the documented flag bits. Confidence: high.",
+    "Category": "Input",
+    "Tier": "safe",
+    "Recommended": true,
+    "Order": 21,
+    "registry": [
+      {
+        "Path": "HKCU:\\Control Panel\\Accessibility\\StickyKeys",
+        "Name": "Flags",
+        "Type": "String",
+        "Value": "506",
+        "OriginalValue": "510"
+      },
+      {
+        "Path": "HKCU:\\Control Panel\\Accessibility\\ToggleKeys",
+        "Name": "Flags",
+        "Type": "String",
+        "Value": "58",
+        "OriginalValue": "62"
+      },
+      {
+        "Path": "HKCU:\\Control Panel\\Accessibility\\Keyboard Response",
+        "Name": "Flags",
+        "Type": "String",
+        "Value": "122",
+        "OriginalValue": "126"
+      }
+    ]
+  },
+  "UTEdgeBackground": {
+    "Content": "Edge startup boost and background mode off",
+    "Description": "Stops Microsoft Edge from pre-launching at sign-in and lingering in the background after you close it. Documented Edge policies.",
+    "Evidence": "StartupBoostEnabled and BackgroundModeEnabled are documented Microsoft Edge policies (Microsoft Edge policy reference). 0 stops Edge pre-launching at sign-in and lingering after the last window closes. Confidence: high.",
+    "Category": "Background load",
+    "Tier": "safe",
+    "Recommended": true,
+    "Order": 30,
+    "registry": [
+      {
+        "Path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge",
+        "Name": "StartupBoostEnabled",
+        "Type": "DWord",
+        "Value": "0",
+        "OriginalValue": "<RemoveEntry>"
+      },
+      {
+        "Path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge",
+        "Name": "BackgroundModeEnabled",
+        "Type": "DWord",
+        "Value": "0",
+        "OriginalValue": "<RemoveEntry>"
+      }
+    ]
+  },
+  "UTWidgets": {
+    "Content": "Widgets / news feed off",
+    "Description": "Disables the Widgets board and its WebExperience background process (Windows 11) and the news and interests feed (Windows 10).",
+    "Evidence": "AllowNewsAndInterests (Windows 11 Widgets) and EnableFeeds (Windows 10 news and interests) are the Group Policy values; EnableFeeds was read out of C:\\Windows\\PolicyDefinitions\\Feeds.admx on a live Windows 10 build. Widgets keeps a WebExperience process alive while enabled. Confidence: high.",
+    "Category": "Background load",
+    "Tier": "safe",
+    "Recommended": true,
+    "Order": 31,
+    "registry": [
+      {
+        "Path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Dsh",
+        "Name": "AllowNewsAndInterests",
+        "Type": "DWord",
+        "Value": "0",
+        "OriginalValue": "<RemoveEntry>"
+      },
+      {
+        "Path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\Windows Feeds",
+        "Name": "EnableFeeds",
+        "Type": "DWord",
+        "Value": "0",
+        "OriginalValue": "<RemoveEntry>"
+      },
+      {
+        "Path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
+        "Name": "TaskbarDa",
+        "Type": "DWord",
+        "Value": "0",
+        "OriginalValue": "<RemoveEntry>"
+      }
+    ],
+    "SignOut": true
+  },
+  "UTSearchCopilotRecall": {
+    "Content": "Web search in Start, Copilot data analysis and Recall off",
+    "Description": "Keeps Start menu search local (no Bing results), and sets the Windows 11 24H2 policies that disable Recall and AI data analysis. Uses the current keys; the old TurnOffWindowsCopilot policy is deprecated.",
+    "Evidence": "DisableSearchBoxSuggestions and BingSearchEnabled are the documented keys for local-only Start search; DisableAIDataAnalysis is the Windows 11 24H2 policy that disables Recall (Microsoft Learn, WindowsAI policies). The older TurnOffWindowsCopilot policy is deprecated. Confidence: high.",
+    "Category": "Privacy",
+    "Tier": "safe",
+    "Recommended": true,
+    "Order": 40,
+    "registry": [
+      {
+        "Path": "HKCU:\\Software\\Policies\\Microsoft\\Windows\\Explorer",
+        "Name": "DisableSearchBoxSuggestions",
+        "Type": "DWord",
+        "Value": "1",
+        "OriginalValue": "<RemoveEntry>"
+      },
+      {
+        "Path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Search",
+        "Name": "BingSearchEnabled",
+        "Type": "DWord",
+        "Value": "0",
+        "OriginalValue": "<RemoveEntry>"
+      },
+      {
+        "Path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsAI",
+        "Name": "DisableAIDataAnalysis",
+        "Type": "DWord",
+        "Value": "1",
+        "OriginalValue": "<RemoveEntry>"
+      },
+      {
+        "Path": "HKCU:\\Software\\Policies\\Microsoft\\Windows\\WindowsAI",
+        "Name": "DisableAIDataAnalysis",
+        "Type": "DWord",
+        "Value": "1",
+        "OriginalValue": "<RemoveEntry>"
+      }
+    ],
+    "SignOut": true
+  },
+  "UTTelemetry": {
+    "Content": "Telemetry, feedback prompts, error reporting and appraiser tasks off",
+    "Description": "Sets diagnostic data to the minimum Home/Pro honours, disables the DiagTrack service, the Compatibility Appraiser and CEIP scheduled tasks (the appraiser is the one that scans your drive at high load), feedback prompts and Windows Error Reporting uploads.",
+    "Evidence": "AllowTelemetry=1 is the lowest level Home and Pro honour; 0 only applies to Enterprise (Microsoft Learn). DiagTrack is the Connected User Experiences and Telemetry service. The Compatibility Appraiser is the task that scans the drive at high load, and the CEIP tasks' own Task Scheduler descriptions say they collect and upload usage data (read on a live Windows 10 machine). Confidence: high for the keys, medium for any FPS effect.",
+    "Category": "Privacy",
+    "Tier": "safe",
+    "Recommended": true,
+    "Order": 41,
+    "registry": [
+      {
+        "Path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection",
+        "Name": "AllowTelemetry",
+        "Type": "DWord",
+        "Value": "1",
+        "OriginalValue": "<RemoveEntry>"
+      },
+      {
+        "Path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\AdvertisingInfo",
+        "Name": "Enabled",
+        "Type": "DWord",
+        "Value": "0",
+        "OriginalValue": "1"
+      },
+      {
+        "Path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Privacy",
+        "Name": "TailoredExperiencesWithDiagnosticDataEnabled",
+        "Type": "DWord",
+        "Value": "0",
+        "OriginalValue": "1"
+      },
+      {
+        "Path": "HKCU:\\Software\\Microsoft\\Siuf\\Rules",
+        "Name": "NumberOfSIUFInPeriod",
+        "Type": "DWord",
+        "Value": "0",
+        "OriginalValue": "<RemoveEntry>"
+      },
+      {
+        "Path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\Windows Error Reporting",
+        "Name": "Disabled",
+        "Type": "DWord",
+        "Value": "1",
+        "OriginalValue": "<RemoveEntry>"
+      }
+    ],
+    "service": [
+      {
+        "Name": "DiagTrack",
+        "StartupType": "Disabled",
+        "OriginalType": "Automatic"
+      }
+    ],
+    "ScheduledTask": [
+      {
+        "Name": "\\Microsoft\\Windows\\Application Experience\\Microsoft Compatibility Appraiser",
+        "State": "Disabled",
+        "OriginalState": "Enabled"
+      },
+      {
+        "Name": "\\Microsoft\\Windows\\Application Experience\\ProgramDataUpdater",
+        "State": "Disabled",
+        "OriginalState": "Enabled"
+      },
+      {
+        "Name": "\\Microsoft\\Windows\\Customer Experience Improvement Program\\Consolidator",
+        "State": "Disabled",
+        "OriginalState": "Enabled"
+      },
+      {
+        "Name": "\\Microsoft\\Windows\\Customer Experience Improvement Program\\UsbCeip",
+        "State": "Disabled",
+        "OriginalState": "Enabled"
+      },
+      {
+        "Name": "\\Microsoft\\Windows\\DiskDiagnostic\\Microsoft-Windows-DiskDiagnosticDataCollector",
+        "State": "Disabled",
+        "OriginalState": "Enabled"
+      },
+      {
+        "Name": "\\Microsoft\\Windows\\Windows Error Reporting\\QueueReporting",
+        "State": "Disabled",
+        "OriginalState": "Enabled"
+      },
+      {
+        "Name": "\\Microsoft\\Windows\\Feedback\\Siuf\\DmClient",
+        "State": "Disabled",
+        "OriginalState": "Enabled"
+      },
+      {
+        "Name": "\\Microsoft\\Windows\\Feedback\\Siuf\\DmClientOnScenarioDownload",
+        "State": "Disabled",
+        "OriginalState": "Enabled"
+      },
+      {
+        "Name": "\\Microsoft\\Windows\\Maps\\MapsUpdateTask",
+        "State": "Disabled",
+        "OriginalState": "Enabled"
+      },
+      {
+        "Name": "\\Microsoft\\Windows\\Autochk\\Proxy",
+        "State": "Disabled",
+        "OriginalState": "Enabled"
+      }
+    ],
+    "Reboot": true
+  },
+  "UTSuggestions": {
+    "Content": "Start / lock screen / Settings suggestions and silent app installs off",
+    "Description": "Turns off promoted apps, tips and suggestions delivered by the Content Delivery Manager, and the consumer features policy that silently installs sponsored apps.",
+    "Evidence": "The SubscribedContent values are the switches behind the Settings suggestion toggles, and DisableWindowsConsumerFeatures is the policy that stops sponsored apps being installed silently (Microsoft Learn, CloudContent policy). Confidence: medium.",
+    "Category": "Privacy",
+    "Tier": "safe",
+    "Recommended": true,
+    "Order": 42,
+    "registry": [
+      {
+        "Path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager",
+        "Name": "SubscribedContent-338388Enabled",
+        "Type": "DWord",
+        "Value": "0",
+        "OriginalValue": "1"
+      },
+      {
+        "Path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager",
+        "Name": "SubscribedContent-338389Enabled",
+        "Type": "DWord",
+        "Value": "0",
+        "OriginalValue": "1"
+      },
+      {
+        "Path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager",
+        "Name": "SubscribedContent-353698Enabled",
+        "Type": "DWord",
+        "Value": "0",
+        "OriginalValue": "1"
+      },
+      {
+        "Path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager",
+        "Name": "SilentInstalledAppsEnabled",
+        "Type": "DWord",
+        "Value": "0",
+        "OriginalValue": "1"
+      },
+      {
+        "Path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager",
+        "Name": "SystemPaneSuggestionsEnabled",
+        "Type": "DWord",
+        "Value": "0",
+        "OriginalValue": "1"
+      },
+      {
+        "Path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\CloudContent",
+        "Name": "DisableWindowsConsumerFeatures",
+        "Type": "DWord",
+        "Value": "1",
+        "OriginalValue": "<RemoveEntry>"
+      }
+    ],
+    "SignOut": true
+  },
+  "UTActivityHistory": {
+    "Content": "Activity history publishing and upload off",
+    "Description": "Stops Windows from collecting and uploading your activity timeline. Clipboard history is not affected.",
+    "Evidence": "EnableActivityFeed, PublishUserActivities and UploadUserActivities are the three documented Activity History policies (Microsoft Learn). 0 is the correct value for all three; some tools write EnableActivityFeed=1 by mistake. Confidence: high.",
+    "Category": "Privacy",
+    "Tier": "safe",
+    "Recommended": true,
+    "Order": 43,
+    "registry": [
+      {
+        "Path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\System",
+        "Name": "EnableActivityFeed",
+        "Type": "DWord",
+        "Value": "0",
+        "OriginalValue": "<RemoveEntry>"
+      },
+      {
+        "Path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\System",
+        "Name": "PublishUserActivities",
+        "Type": "DWord",
+        "Value": "0",
+        "OriginalValue": "<RemoveEntry>"
+      },
+      {
+        "Path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\System",
+        "Name": "UploadUserActivities",
+        "Type": "DWord",
+        "Value": "0",
+        "OriginalValue": "<RemoveEntry>"
+      }
+    ]
+  },
+  "UTDeliveryOptimization": {
+    "Content": "Delivery Optimization peer uploads off",
+    "Description": "Stops Windows Update from uploading updates to other PCs on the internet. Peer uploads are the one background feature that can raise your ping and packet loss during a match on a slow upload line. Downloads keep working over HTTP.",
+    "Evidence": "DODownloadMode=0 is the documented HTTP-only mode: Windows Update downloads normally and never uploads to other PCs (Microsoft Learn, Delivery Optimization reference). Mode 100 (bypass) is deprecated and not used. Confidence: high.",
+    "Category": "Network",
+    "Tier": "safe",
+    "Recommended": true,
+    "Order": 50,
+    "registry": [
+      {
+        "Path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\DeliveryOptimization",
+        "Name": "DODownloadMode",
+        "Type": "DWord",
+        "Value": "0",
+        "OriginalValue": "<RemoveEntry>"
+      }
+    ]
+  },
+  "UTWUDrivers": {
+    "Content": "Windows Update no longer replaces your GPU driver",
+    "Description": "Excludes drivers from quality updates and stops device installation from searching Windows Update. A common cause of sudden FPS drops is Windows swapping a fresh GeForce or Adrenalin driver for an older WHQL one after a reboot.",
+    "Evidence": "ExcludeWUDriversInQualityUpdate is the Windows Update policy that stops Windows swapping your GPU or chipset driver for an older WHQL one, and SearchOrderConfig=0 is the Device Installation setting under it (Microsoft Learn). Confidence: high.",
+    "Category": "Stability",
+    "Tier": "safe",
+    "Recommended": true,
+    "Order": 60,
+    "registry": [
+      {
+        "Path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate",
+        "Name": "ExcludeWUDriversInQualityUpdate",
+        "Type": "DWord",
+        "Value": "1",
+        "OriginalValue": "<RemoveEntry>"
+      },
+      {
+        "Path": "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\DriverSearching",
+        "Name": "SearchOrderConfig",
+        "Type": "DWord",
+        "Value": "0",
+        "OriginalValue": "1"
+      }
+    ]
+  },
+  "UTFastStartupOff": {
+    "Content": "Fast startup off (true cold boot on shutdown)",
+    "Description": "With fast startup, Shut down only hibernates the kernel, so GPU driver state and overlay hooks survive for weeks. A real cold boot fixes the class of stutter that a restart magically cures. Hibernation itself stays available.",
+    "Evidence": "HiberbootEnabled=0 turns off Fast Startup (hybrid shutdown), so a shutdown is a real cold boot and drivers reinitialise instead of resuming from a hibernation image (Microsoft Learn, Fast startup). Hibernation itself is untouched. Confidence: medium.",
+    "Category": "Stability",
+    "Tier": "safe",
+    "Recommended": true,
+    "Order": 61,
+    "registry": [
+      {
+        "Path": "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Power",
+        "Name": "HiberbootEnabled",
+        "Type": "DWord",
+        "Value": "0",
+        "OriginalValue": "1"
+      }
+    ],
+    "Reboot": true
+  },
+  "UTExplorerQoL": {
+    "Content": "Show file extensions and End task on the taskbar",
+    "Description": "Shows real file extensions and adds End task to the taskbar right-click menu (Windows 11 23H2+), handy for a hung game.",
+    "Evidence": "HideFileExt is the value behind Explorer's File name extensions switch and TaskbarEndTask is the Settings > For developers End task switch. Quality of life only. Confidence: medium.",
+    "Category": "Quality of life",
+    "Tier": "safe",
+    "Recommended": true,
+    "Order": 70,
+    "registry": [
+      {
+        "Path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
+        "Name": "HideFileExt",
+        "Type": "DWord",
+        "Value": "0",
+        "OriginalValue": "1"
+      },
+      {
+        "Path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced\\TaskbarDeveloperSettings",
+        "Name": "TaskbarEndTask",
+        "Type": "DWord",
+        "Value": "1",
+        "OriginalValue": "<RemoveEntry>"
+      }
+    ],
+    "SignOut": true
+  },
+  "UTStartupDelay": {
+    "Content": "Startup app delay removed",
+    "Description": "Removes the delay Windows adds before launching startup apps after sign-in. Only affects boot, not gameplay.",
+    "Evidence": "StartupDelayInMSec is the Explorer serialization delay that holds Run and Startup-folder entries back for around ten seconds after sign-in; 0 removes the hold. Widely documented, not an official Microsoft setting. Confidence: medium.",
+    "Category": "Quality of life",
+    "Tier": "safe",
+    "Recommended": false,
+    "Order": 71,
+    "registry": [
+      {
+        "Path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Serialize",
+        "Name": "StartupDelayInMSec",
+        "Type": "DWord",
+        "Value": "0",
+        "OriginalValue": "<RemoveEntry>"
+      }
+    ]
+  },
+  "UTWindowedGamesOpt": {
+    "Content": "Optimizations for windowed games on (Windows 11)",
+    "Description": "Moves DirectX 10/11 games running windowed or borderless to the flip presentation model, which Microsoft says reduces frame latency and enables VRR and Auto HDR. Merged into the existing setting string; nothing else in it is touched.",
+    "Evidence": "SwapEffectUpgradeEnable=1 in DirectXUserGlobalSettings is what the Settings > Graphics Optimizations for windowed games switch writes. It upgrades legacy blt-model presentation to flip model, which Microsoft says lowers latency (Microsoft DirectX blog). Windows 11 22H2 or newer. Confidence: high for the mechanism, medium for the key.",
+    "Category": "Gaming",
+    "Tier": "safe",
+    "Recommended": true,
+    "Order": 11,
+    "MinBuild": 22621,
+    "InvokeScript": [
+      "$p = 'HKCU:\\Software\\Microsoft\\DirectX\\UserGpuPreferences'; if (-not (Test-Path $p)) { New-Item $p -Force | Out-Null }; $v = (Get-ItemProperty $p -Name DirectXUserGlobalSettings -ErrorAction SilentlyContinue).DirectXUserGlobalSettings; Save-UTScriptState -Id UTWindowedGamesOpt -Key Previous -Value ([string]$v); $tokens = @(); if ($v) { $tokens = @($v -split ';' | Where-Object { $_ -and $_ -notmatch '^SwapEffectUpgradeEnable=' }) }; $tokens += 'SwapEffectUpgradeEnable=1'; Set-ItemProperty $p -Name DirectXUserGlobalSettings -Type String -Value (($tokens -join ';') + ';')"
+    ],
+    "UndoScript": [
+      "$p = 'HKCU:\\Software\\Microsoft\\DirectX\\UserGpuPreferences'; $prev = Get-UTScriptState -Id UTWindowedGamesOpt -Key Previous; if ([string]::IsNullOrEmpty($prev)) { Remove-ItemProperty $p -Name DirectXUserGlobalSettings -ErrorAction SilentlyContinue } else { Set-ItemProperty $p -Name DirectXUserGlobalSettings -Type String -Value $prev }"
+    ]
+  },
+  "UTUsbPcieNoSleep": {
+    "Content": "USB selective suspend and PCIe link power saving off (plugged in)",
+    "Description": "Stops USB devices (mouse, keyboard, headset DAC) and the PCIe link from entering low-power states while plugged in. Prevents the wake-up hitch and the rare device drop-out. Battery settings are not changed.",
+    "Evidence": "USB selective suspend (48e6b7a6) and PCI Express Link State Power Management (ee12f906) are documented power setting GUIDs (Microsoft Learn); index 0 is off. Only the plugged-in value is changed. Confidence: high.",
+    "Category": "Power",
+    "Tier": "safe",
+    "Recommended": true,
+    "Order": 80,
+    "InvokeScript": [
+      "$usb = Get-UTPowerCfgIndex -SubGroup '2a737441-1930-4402-8d77-b2bebba308a3' -Setting '48e6b7a6-50f5-4782-a5d4-53bb8f07e226'; $pci = Get-UTPowerCfgIndex -SubGroup '501a4d13-42af-4429-9fd1-a8218c268e20' -Setting 'ee12f906-d277-404b-b6da-e5fa1a576df5'; Save-UTScriptState -Id UTUsbPcieNoSleep -Key Usb -Value $usb; Save-UTScriptState -Id UTUsbPcieNoSleep -Key Pci -Value $pci; Set-UTPowerCfgIndex -SubGroup '2a737441-1930-4402-8d77-b2bebba308a3' -Setting '48e6b7a6-50f5-4782-a5d4-53bb8f07e226' -Index 0 -What 'USB selective suspend'; Set-UTPowerCfgIndex -SubGroup '501a4d13-42af-4429-9fd1-a8218c268e20' -Setting 'ee12f906-d277-404b-b6da-e5fa1a576df5' -Index 0 -What 'PCIe link state power management'"
+    ],
+    "UndoScript": [
+      "$usb = Get-UTScriptState -Id UTUsbPcieNoSleep -Key Usb; if ($null -eq $usb) { $usb = 1 }; $pci = Get-UTScriptState -Id UTUsbPcieNoSleep -Key Pci; if ($null -eq $pci) { $pci = 1 }; Set-UTPowerCfgIndex -SubGroup '2a737441-1930-4402-8d77-b2bebba308a3' -Setting '48e6b7a6-50f5-4782-a5d4-53bb8f07e226' -Index ([uint32]$usb) -What 'USB selective suspend'; Set-UTPowerCfgIndex -SubGroup '501a4d13-42af-4429-9fd1-a8218c268e20' -Setting 'ee12f906-d277-404b-b6da-e5fa1a576df5' -Index ([uint32]$pci) -What 'PCIe link state power management'"
+    ]
+  },
+  "UTTempFiles": {
+    "Content": "Clear temporary files",
+    "Description": "Deletes the contents of your user TEMP folder and C:\\Windows\\Temp. Files in use are skipped. Nothing to undo.",
+    "Evidence": "Deletes the contents of %TEMP% and C:\\Windows\\Temp; anything in use is skipped. Disk space only, no performance claim. Confidence: high.",
+    "Category": "Cleanup",
+    "Tier": "safe",
+    "Recommended": true,
+    "Order": 90,
+    "InvokeScript": [
+      "Remove-Item -Path \"$env:TEMP\\*\" -Recurse -Force -ErrorAction SilentlyContinue; Remove-Item -Path \"$env:SystemRoot\\Temp\\*\" -Recurse -Force -ErrorAction SilentlyContinue; Write-UTLog 'Temporary files cleared (files in use were skipped)'"
+    ]
+  },
+  "UTHAGS": {
+    "Content": "Hardware-accelerated GPU scheduling on",
+    "Description": "Lets the GPU manage its own scheduling. Required for DLSS Frame Generation and the Windows 11 24H2 hardware flip queue. Recommended on GTX 10 / RX 5000 or newer with a recent driver; older GPUs should skip it. Reboot required.",
+    "Evidence": "HwSchMode=2 is the registry value behind Settings > Graphics Hardware-accelerated GPU scheduling. Gamers Nexus and BabelTechReviews both measured roughly zero average FPS change; the real reasons to enable it are DLSS Frame Generation, which requires it, and the Windows 11 24H2 flip queue. Confidence: high.",
+    "Category": "Gaming",
+    "Tier": "optional",
+    "Recommended": false,
+    "Order": 100,
+    "Reboot": true,
+    "registry": [
+      {
+        "Path": "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\GraphicsDrivers",
+        "Name": "HwSchMode",
+        "Type": "DWord",
+        "Value": "2",
+        "OriginalValue": "<RemoveEntry>"
+      }
+    ]
+  },
+  "UTGameModeOff": {
+    "Content": "Windows Game Mode off",
+    "Description": "Game Mode stops driver installs and update restarts while you play and gives the game scheduling priority. Most people should leave it on; try turning it off only if you get periodic stutter with it enabled.",
+    "Evidence": "AutoGameModeEnabled=0 is the Settings > Gaming Game Mode switch. Community results are split: Microsoft's default is on, and some systems stutter less with it off. A troubleshooting step, not a boost. Confidence: medium.",
+    "Category": "Gaming",
+    "Tier": "optional",
+    "Recommended": false,
+    "Order": 101,
+    "registry": [
+      {
+        "Path": "HKCU:\\Software\\Microsoft\\GameBar",
+        "Name": "AutoGameModeEnabled",
+        "Type": "DWord",
+        "Value": "0",
+        "OriginalValue": "<RemoveEntry>"
+      }
+    ]
+  },
+  "UTGameBarPopups": {
+    "Content": "Game Bar pop-ups and controller button off",
+    "Description": "Stops the Game Bar overlay from opening on the Xbox button and the startup panel from appearing. No FPS effect, pure quality of life.",
+    "Evidence": "ShowStartupPanel and UseNexusForGameBarEnabled are the Game Bar settings behind the Open Game Bar prompt and the Xbox button. Quality of life only. Confidence: medium.",
+    "Category": "Gaming",
+    "Tier": "optional",
+    "Recommended": false,
+    "Order": 102,
+    "registry": [
+      {
+        "Path": "HKCU:\\Software\\Microsoft\\GameBar",
+        "Name": "ShowStartupPanel",
+        "Type": "DWord",
+        "Value": "0",
+        "OriginalValue": "<RemoveEntry>"
+      },
+      {
+        "Path": "HKCU:\\Software\\Microsoft\\GameBar",
+        "Name": "UseNexusForGameBarEnabled",
+        "Type": "DWord",
+        "Value": "0",
+        "OriginalValue": "<RemoveEntry>"
+      }
+    ]
+  },
+  "UTFSOGlobalOff": {
+    "Content": "Fullscreen optimizations off for all games",
+    "Description": "Global equivalent of the per-exe Disable fullscreen optimizations checkbox. Microsoft says the optimizations perform as well or better, and Windows ignores the setting entirely for DirectX 12 titles - so a Fortnite running DX12 or DX12 Performance Mode gains nothing and only loses the Auto HDR and VRR paths. It does apply if you launch Fortnite with the -d3d11 argument from the FORTNITE tab, and to specific old DirectX 9/11 games that misbehave.",
+    "Evidence": "GameDVR_FSEBehaviorMode and the related GameConfigStore values are what the per-exe Disable fullscreen optimizations checkbox writes, applied globally. Windows ignores them entirely for DirectX 12 titles (Microsoft Q&A), so they only matter for DirectX 9/11 games, including Fortnite launched with -d3d11. Confidence: medium.",
+    "Category": "Gaming",
+    "Tier": "optional",
+    "Recommended": false,
+    "Order": 103,
+    "registry": [
+      {
+        "Path": "HKCU:\\System\\GameConfigStore",
+        "Name": "GameDVR_FSEBehaviorMode",
+        "Type": "DWord",
+        "Value": "2",
+        "OriginalValue": "<RemoveEntry>"
+      },
+      {
+        "Path": "HKCU:\\System\\GameConfigStore",
+        "Name": "GameDVR_HonorUserFSEBehaviorMode",
+        "Type": "DWord",
+        "Value": "1",
+        "OriginalValue": "<RemoveEntry>"
+      },
+      {
+        "Path": "HKCU:\\System\\GameConfigStore",
+        "Name": "GameDVR_DXGIHonorFSEWindowsCompatible",
+        "Type": "DWord",
+        "Value": "1",
+        "OriginalValue": "<RemoveEntry>"
+      },
+      {
+        "Path": "HKCU:\\System\\GameConfigStore",
+        "Name": "GameDVR_EFSEFeatureFlags",
+        "Type": "DWord",
+        "Value": "0",
+        "OriginalValue": "<RemoveEntry>"
+      }
+    ]
+  },
+  "UTPowerThrottlingOff": {
+    "Content": "Power throttling of background apps off (laptops on AC)",
+    "Description": "Windows never throttles the focused game, only background apps, so this helps laptops that run Discord, browsers or overlays alongside the game while plugged in. No effect on desktops.",
+    "Evidence": "PowerThrottlingOff=1 disables Power Throttling, the Windows 10 1709+ feature that lowers background CPU frequency on laptops (Microsoft Learn, Power throttling). No effect on desktops. Confidence: high.",
+    "Category": "Power",
+    "Tier": "optional",
+    "Recommended": false,
+    "Order": 110,
+    "registry": [
+      {
+        "Path": "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Power\\PowerThrottling",
+        "Name": "PowerThrottlingOff",
+        "Type": "DWord",
+        "Value": "1",
+        "OriginalValue": "<RemoveEntry>"
+      }
+    ],
+    "Reboot": true
+  },
+  "UTUltimatePerf": {
+    "Content": "Ultimate Performance power plan (desktop)",
+    "Description": "Creates and activates the hidden Ultimate Performance plan. On modern CPUs with hardware P-states the FPS difference is negligible; it does keep clocks from dipping between scenes. Costs heat and idle power. Not for laptops on battery.",
+    "Evidence": "e9a42b02-d5df-448d-aa00-03f14749eb61 is Microsoft's Ultimate Performance scheme (Microsoft Learn). The measured difference to High Performance is inside noise on CPUs with hardware P-states, and at least one test found worse 1 percent lows. Confidence: high for the mechanism, low for any gain.",
+    "Category": "Power",
+    "Tier": "optional",
+    "Recommended": false,
+    "Order": 111,
+    "LaptopWarning": "This keeps the CPU at full clocks and will drain a laptop battery quickly.",
+    "InvokeScript": [
+      "$rx = '([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})'; $active = (powercfg /getactivescheme | Out-String); if ($active -match $rx) { Save-UTScriptState -Id UTUltimatePerf -Key PreviousScheme -Value $Matches[1] }; $out = (powercfg -duplicatescheme e9a42b02-d5df-448d-aa00-03f14749eb61 | Out-String); if ($out -match $rx) { $g = $Matches[1]; Save-UTScriptState -Id UTUltimatePerf -Key CreatedScheme -Value $g; powercfg /setactive $g | Out-Null; if ($LASTEXITCODE -ne 0) { throw \"powercfg could not activate $g\" }; Write-UTLog \"Ultimate Performance plan $g is now active\" } else { throw \"powercfg could not create the Ultimate Performance plan: $out\" }"
+    ],
+    "UndoScript": [
+      "$prev = Get-UTScriptState -Id UTUltimatePerf -Key PreviousScheme; if (-not $prev) { $prev = 'SCHEME_BALANCED' }; powercfg /setactive $prev | Out-Null; if ($LASTEXITCODE -ne 0) { throw \"powercfg could not activate the previous plan $prev\" }; $now = (powercfg /getactivescheme | Out-String); $g = Get-UTScriptState -Id UTUltimatePerf -Key CreatedScheme; if ($g -and $now -notmatch [regex]::Escape($g)) { powercfg /delete $g | Out-Null }; Write-UTLog \"Power plan restored to $prev\""
+    ]
+  },
+  "UTHibernateOff": {
+    "Content": "Hibernation off (desktop)",
+    "Description": "Deletes hiberfil.sys (roughly the size of your RAM) and disables hibernate and fast startup entirely. Fine on a desktop, bad on a laptop where hibernate protects unsaved work on low battery.",
+    "Evidence": "powercfg /hibernate off removes hiberfil.sys; the flag Windows reads is HibernateEnabled under HKLM\\SYSTEM\\CurrentControlSet\\Control\\Power, which powercfg writes itself (Microsoft Learn). Disk space only, no FPS effect. Confidence: high.",
+    "Category": "Power",
+    "Tier": "optional",
+    "Recommended": false,
+    "Order": 112,
+    "LaptopWarning": "Laptops should keep hibernation; use the Fast startup off tweak instead.",
+    "InvokeScript": [
+      "powercfg.exe /hibernate off"
+    ],
+    "UndoScript": [
+      "powercfg.exe /hibernate on"
+    ]
+  },
+  "UTVisualEffects": {
+    "Content": "Visual effects set for performance",
+    "Description": "Turns off window animations, transparency, Aero Peek, list view shadows and menu fade. Makes the desktop snappier and removes a little compositor work; it does not change FPS inside a fullscreen game. Sign out to apply everything.",
+    "Evidence": "The same values the Performance Options dialog writes for Adjust for best performance (VisualFXSetting, UserPreferencesMask, MinAnimate, TaskbarAnimations, transparency). Desktop responsiveness only; games are unaffected. Confidence: medium.",
+    "Category": "Quality of life",
+    "Tier": "optional",
+    "Recommended": false,
+    "Order": 120,
+    "SignOut": true,
+    "registry": [
+      {
+        "Path": "HKCU:\\Control Panel\\Desktop",
+        "Name": "DragFullWindows",
+        "Type": "String",
+        "Value": "0",
+        "OriginalValue": "1"
+      },
+      {
+        "Path": "HKCU:\\Control Panel\\Desktop",
+        "Name": "MenuShowDelay",
+        "Type": "String",
+        "Value": "200",
+        "OriginalValue": "400"
+      },
+      {
+        "Path": "HKCU:\\Control Panel\\Desktop\\WindowMetrics",
+        "Name": "MinAnimate",
+        "Type": "String",
+        "Value": "0",
+        "OriginalValue": "1"
+      },
+      {
+        "Path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
+        "Name": "ListviewAlphaSelect",
+        "Type": "DWord",
+        "Value": "0",
+        "OriginalValue": "1"
+      },
+      {
+        "Path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
+        "Name": "ListviewShadow",
+        "Type": "DWord",
+        "Value": "0",
+        "OriginalValue": "1"
+      },
+      {
+        "Path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
+        "Name": "TaskbarAnimations",
+        "Type": "DWord",
+        "Value": "0",
+        "OriginalValue": "1"
+      },
+      {
+        "Path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\VisualEffects",
+        "Name": "VisualFXSetting",
+        "Type": "DWord",
+        "Value": "3",
+        "OriginalValue": "1"
+      },
+      {
+        "Path": "HKCU:\\Software\\Microsoft\\Windows\\DWM",
+        "Name": "EnableAeroPeek",
+        "Type": "DWord",
+        "Value": "0",
+        "OriginalValue": "1"
+      },
+      {
+        "Path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
+        "Name": "EnableTransparency",
+        "Type": "DWord",
+        "Value": "0",
+        "OriginalValue": "1"
+      },
+      {
+        "Path": "HKCU:\\Control Panel\\Desktop",
+        "Name": "UserPreferencesMask",
+        "Type": "Binary",
+        "Value": "90,12,03,80,10,00,00,00",
+        "OriginalValue": "9E,3E,07,80,12,00,00,00"
+      }
+    ]
+  },
+  "UTWUDefer": {
+    "Content": "Defer feature updates for a year",
+    "Description": "Keeps you on your current Windows version for up to 365 days while still receiving security updates. Avoids a new feature update landing mid-season with fresh driver and anti-cheat regressions.",
+    "Evidence": "DeferFeatureUpdates, DeferFeatureUpdatesPeriodInDays and BranchReadinessLevel are the Windows Update for Business policies (Microsoft Learn). Feature updates are delayed; security updates still install. Confidence: high.",
+    "Category": "Stability",
+    "Tier": "optional",
+    "Recommended": false,
+    "Order": 130,
+    "registry": [
+      {
+        "Path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate",
+        "Name": "DeferFeatureUpdates",
+        "Type": "DWord",
+        "Value": "1",
+        "OriginalValue": "<RemoveEntry>"
+      },
+      {
+        "Path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate",
+        "Name": "DeferFeatureUpdatesPeriodInDays",
+        "Type": "DWord",
+        "Value": "365",
+        "OriginalValue": "<RemoveEntry>"
+      },
+      {
+        "Path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate",
+        "Name": "BranchReadinessLevel",
+        "Type": "DWord",
+        "Value": "16",
+        "OriginalValue": "<RemoveEntry>"
+      }
+    ]
+  },
+  "UTNicPowerSaving": {
+    "Content": "Network adapter power saving and Energy Efficient Ethernet off",
+    "Description": "Stops Windows from putting the active network adapter to sleep and disables 802.3az power saving where the driver exposes it. Fixes latency spikes and drop-outs on laptops, USB adapters and some Wi-Fi drivers. Does not change average ping. The adapter resets as this is applied, so expect the connection to drop for a second.",
+    "Evidence": "Disable-NetAdapterPowerManagement is the PowerShell form of unticking Allow the computer to turn off this device on the NIC, and *EEE=0 disables Energy-Efficient Ethernet (Microsoft Learn, NetAdapter cmdlets). Matters on laptops and USB NICs where link power states add latency. Confidence: high.",
+    "Category": "Network",
+    "Tier": "optional",
+    "Recommended": false,
+    "Order": 141,
+    "InvokeScript": [
+      "$names = @(); Get-NetAdapter -Physical -ErrorAction SilentlyContinue | Where-Object { $_.Status -eq 'Up' } | ForEach-Object { $n = $_.Name; $names += $n; try { Disable-NetAdapterPowerManagement -Name $n -ErrorAction Stop; Write-UTLog \"Power management disabled on $n\" } catch { Write-UTLog \"Could not change power management on $n : $($_.Exception.Message)\" -Level Warn }; try { $null = Get-NetAdapterAdvancedProperty -Name $n -RegistryKeyword '*EEE' -ErrorAction Stop; Set-NetAdapterAdvancedProperty -Name $n -RegistryKeyword '*EEE' -RegistryValue 0 -ErrorAction Stop; Write-UTLog \"Energy Efficient Ethernet disabled on $n\" } catch { } }; Save-UTScriptState -Id UTNicPowerSaving -Key Adapters -Value ($names -join '|')"
+    ],
+    "UndoScript": [
+      "$saved = Get-UTScriptState -Id UTNicPowerSaving -Key Adapters; $names = @(); if ($saved) { $names = $saved -split '\\|' } else { $names = @(Get-NetAdapter -Physical -ErrorAction SilentlyContinue | ForEach-Object { $_.Name }) }; foreach ($n in $names) { if (-not $n) { continue }; try { Enable-NetAdapterPowerManagement -Name $n -ErrorAction Stop } catch { }; try { Reset-NetAdapterAdvancedProperty -Name $n -RegistryKeyword '*EEE' -ErrorAction Stop } catch { } }"
+    ]
+  },
+  "UTBackgroundApps": {
+    "Content": "Store apps running in the background off",
+    "Description": "Sets the global switch that stops Microsoft Store apps from running in the background. Windows 11 mostly manages this per app, so the effect is small.",
+    "Evidence": "GlobalUserDisabled=1 is the value behind the Windows 10 Let apps run in the background master switch. Windows 11 manages this per app, so the effect there is smaller. Confidence: medium.",
+    "Category": "Background load",
+    "Tier": "optional",
+    "Recommended": false,
+    "Order": 150,
+    "registry": [
+      {
+        "Path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\BackgroundAccessApplications",
+        "Name": "GlobalUserDisabled",
+        "Type": "DWord",
+        "Value": "1",
+        "OriginalValue": "0"
+      }
+    ],
+    "SignOut": true
+  },
+  "UTLocationOff": {
+    "Content": "Location service off",
+    "Description": "Denies location access for the device and your account and disables the Geolocation service. Find My Device and map apps stop working.",
+    "Evidence": "The ConsentStore location Value=Deny is what the Settings > Privacy Location switch writes, and lfsvc is the Geolocation Service. Breaks Find My Device and Maps location. Confidence: medium.",
+    "Category": "Privacy",
+    "Tier": "optional",
+    "Recommended": false,
+    "Order": 151,
+    "registry": [
+      {
+        "Path": "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\CapabilityAccessManager\\ConsentStore\\location",
+        "Name": "Value",
+        "Type": "String",
+        "Value": "Deny",
+        "OriginalValue": "Allow"
+      },
+      {
+        "Path": "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\CapabilityAccessManager\\ConsentStore\\location",
+        "Name": "Value",
+        "Type": "String",
+        "Value": "Deny",
+        "OriginalValue": "Allow"
+      }
+    ],
+    "service": [
+      {
+        "Name": "lfsvc",
+        "StartupType": "Disabled",
+        "OriginalType": "Manual"
+      }
+    ],
+    "Reboot": true
+  },
+  "UTTeredoOff": {
+    "Content": "Teredo tunnelling off",
+    "Description": "Disables the IPv6-over-UDP transition adapter. Irrelevant to Fortnite or Valorant ping, but the Xbox app and Game Pass party chat need Teredo, so skip this if you use them.",
+    "Evidence": "netsh interface teredo set state disabled turns off the IPv6-over-UDP tunnel (Microsoft Learn). Xbox app party chat and some Xbox networking rely on Teredo, which is why this is opt-in. Confidence: medium.",
+    "Category": "Network",
+    "Tier": "optional",
+    "Recommended": false,
+    "Order": 142,
+    "InvokeScript": [
+      "netsh interface teredo set state disabled | Out-Null"
+    ],
+    "UndoScript": [
+      "netsh interface teredo set state type=default | Out-Null"
+    ]
+  },
+  "UTSearchIndexOff": {
+    "Content": "Windows Search indexing off (hard drives)",
+    "Description": "Disables the Windows Search service. Only worth it on a mechanical hard drive where the indexer causes stutter; on an SSD it gains nothing and Start menu file search and Outlook search stop working.",
+    "Evidence": "WSearch is the Windows Search indexer. On a hard drive its indexing causes I/O stutter; on an SSD it does not, and disabling it breaks Start menu file search and Outlook search. Confidence: medium.",
+    "Category": "Background load",
+    "Tier": "optional",
+    "Recommended": false,
+    "Order": 152,
+    "service": [
+      {
+        "Name": "WSearch",
+        "StartupType": "Disabled",
+        "OriginalType": "AutomaticDelayedStart"
+      }
+    ],
+    "Reboot": true
+  },
+  "UTVendorGpuTasks": {
+    "Content": "GPU vendor telemetry and updater tasks off",
+    "Description": "Disables the NVIDIA and AMD scheduled tasks that report telemetry and check for driver updates in the background (NVIDIA Telemetry Monitor and Reporter, the daily driver update check, GeForce Experience self-update, the AMD user experience and updater tasks). The driver, the control panel and the overlay are untouched, and nothing is deleted: the tasks are disabled the same way Task Scheduler disables them, and undo puts back exactly what was enabled before. Installing a new GPU driver re-creates and re-enables them, so expect to run this again after a driver update.",
+    "Evidence": "NvTmMon is the NVIDIA Telemetry Monitor and NvTmRep the crash and telemetry reporter (gHacks, PC Perspective); the SelfUpdate and DriverUpdateCheck tasks poll for updates. Disabling them has no effect on the driver or the control panel. Task names were checked against a live machine on the current driver, which is why they are matched by pattern. Confidence: medium.",
+    "Category": "Background load",
+    "Tier": "optional",
+    "Recommended": false,
+    "Order": 153,
+    "InvokeScript": [
+      "$patterns = @('NvTmRep*', 'NvTmMon*', 'NvProfileUpdater*', 'NvNodeLauncher*', 'NvDriverUpdateCheckDaily*', 'NVIDIA GeForce Experience SelfUpdate*', 'NVIDIA App SelfUpdate*', 'AMD User Experience Program*', 'AMDRyzenMasterSDKTask*', 'AMDInstallLauncher*', 'AMDLinkUpdate*', 'AMDRadeonSoftware*'); $found = 0; foreach ($task in @(Get-ScheduledTask -ErrorAction SilentlyContinue | Where-Object { $_.TaskPath -eq '\\' })) { $match = $false; foreach ($p in $patterns) { if ($task.TaskName -like $p) { $match = $true; break } }; if (-not $match) { continue }; $found++; Save-UTScriptState -Id UTVendorGpuTasks -Key $task.TaskName -Value ([string]$task.State); if ([string]$task.State -eq 'Disabled') { Write-UTLog \"$($task.TaskName): already disabled\"; continue }; try { $task | Disable-ScheduledTask -ErrorAction Stop | Out-Null; Write-UTLog \"$($task.TaskName) -> Disabled\" } catch { throw \"could not disable $($task.TaskName): $($_.Exception.Message)\" } }; if ($found -eq 0) { Write-UTLog 'No NVIDIA or AMD telemetry or updater tasks are present on this PC, nothing to change' }"
+    ],
+    "UndoScript": [
+      "$state = Get-UTScriptState -Id UTVendorGpuTasks; if (-not $state) { Write-UTLog 'No recorded vendor task states, so nothing was re-enabled' -Level Warn } else { $failed = @(); foreach ($name in @($state.Keys)) { if ($state[$name] -eq 'Disabled') { Write-UTLog \"$name was already disabled before, left alone\"; continue }; $task = Get-ScheduledTask -TaskPath '\\' -TaskName $name -ErrorAction SilentlyContinue; if (-not $task) { Write-UTLog \"$name is no longer present, skipped\"; continue }; try { $task | Enable-ScheduledTask -ErrorAction Stop | Out-Null; Write-UTLog \"$name -> Enabled\" } catch { $failed += $name; Write-UTLog \"$name could not be re-enabled: $($_.Exception.Message)\" -Level Error } }; if ($failed.Count -gt 0) { throw (\"could not re-enable {0}; the snapshot is kept so undo can be retried\" -f ($failed -join ', ')) } }"
+    ]
+  },
+  "UTHVCIOff": {
+    "Content": "Memory integrity (core isolation) off",
+    "Description": "RISKY. Memory integrity (HVCI) costs roughly 4 to 8 percent FPS on many systems (Tom's Hardware measured 4 to 6 percent average). Turning it off lowers Windows kernel protection against malicious drivers. As of the last check Riot Vanguard did not require it on Windows 10/11 x64 and Easy Anti-Cheat required it only on Arm and Insider builds, but anti-cheat requirements change without notice: if Valorant or another protected game stops launching, turn this back on first. Windows may prompt to re-enable it after feature updates. Reboot required.",
+    "Evidence": "The Enabled value under DeviceGuard\\Scenarios\\HypervisorEnforcedCodeIntegrity is what the Windows Security Memory integrity switch writes (Microsoft Learn). Tom's Hardware measured HVCI/VBS costing 4 to 6 percent on average and up to 10 to 15 percent in CPU-bound titles. Confidence: high.",
+    "Category": "Risky",
+    "Tier": "risky",
+    "Recommended": false,
+    "Order": 200,
+    "Reboot": true,
+    "registry": [
+      {
+        "Path": "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\DeviceGuard\\Scenarios\\HypervisorEnforcedCodeIntegrity",
+        "Name": "Enabled",
+        "Type": "DWord",
+        "Value": "0",
+        "OriginalValue": "1"
+      }
+    ],
+    "GuardScript": [
+      "if (Get-Service -Name vgk, vgc -ErrorAction SilentlyContinue) { Write-UTLog 'Riot Vanguard is installed on this PC. If Valorant stops launching after this change, undo it first before anything else.' -Level Warn }"
+    ],
+    "InvokeScript": [
+      "try { $dg = Get-CimInstance -Namespace 'root\\Microsoft\\Windows\\DeviceGuard' -ClassName Win32_DeviceGuard -ErrorAction Stop; if (@($dg.SecurityServicesRunning) -contains 1) { Write-UTLog 'Credential Guard is running on this PC: the hypervisor stays on even with memory integrity off, so the FPS gain will be smaller' -Level Warn } } catch { }"
+    ]
+  },
+  "UTVBSOff": {
+    "Content": "Virtualization-based security off (the whole hypervisor)",
+    "Description": "RISKY. Memory integrity is only one thing running inside VBS; the Windows hypervisor underneath it costs frames on its own. Tom's Hardware measured VBS on by default costing up to 10 percent, and about 5 percent geomean across four platforms, worst in CPU-bound competitive titles. This sets the Group Policy value that turns VBS off and stops the hypervisor from launching at boot. It breaks Hyper-V, WSL2, Windows Sandbox, Android subsystem and Docker's WSL backend, and it turns off Credential Guard. Riot's own VAN9005 article tells Windows 10 players to disable VBS, but anti-cheat requirements change without notice: if a protected game stops launching, undo this first. Windows 11 24H2 sometimes re-enables it after an update. If BitLocker or Device Encryption is on, protection is suspended for one reboot first so you do not get a recovery-key prompt. Reboot required.",
+    "Evidence": "EnableVirtualizationBasedSecurity=0 is the disabled value of the Turn On Virtualization Based Security policy, read from C:\\Windows\\PolicyDefinitions\\DeviceGuard.admx, and hypervisorlaunchtype off stops the Windows hypervisor at boot (Microsoft Learn, BCDEdit). Tom's Hardware measured VBS costing up to 10 percent on an RTX 4090 system, about 5 percent geomean across four platforms. Confidence: high.",
+    "Category": "Risky",
+    "Tier": "risky",
+    "Recommended": false,
+    "Order": 201,
+    "Reboot": true,
+    "GuardScript": [
+      "$vm = @(); if (Get-Service -Name vmcompute, vmms -ErrorAction SilentlyContinue) { $vm += 'Hyper-V' }; if (Get-Service -Name LxssManager -ErrorAction SilentlyContinue) { $vm += 'WSL' }; if ($vm.Count -gt 0) { Write-UTLog (\"This PC has {0} installed. Turning the hypervisor off stops it working until you undo this tweak.\" -f ($vm -join ' and ')) -Level Warn }"
+    ],
+    "registry": [
+      {
+        "Path": "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\DeviceGuard",
+        "Name": "EnableVirtualizationBasedSecurity",
+        "Type": "DWord",
+        "Value": "0",
+        "OriginalValue": "<RemoveEntry>"
+      }
+    ],
+    "InvokeScript": [
+      "try { $dg = Get-CimInstance -Namespace 'root\\Microsoft\\Windows\\DeviceGuard' -ClassName Win32_DeviceGuard -ErrorAction Stop; if ([int]$dg.VirtualizationBasedSecurityStatus -eq 0) { Write-UTLog 'VBS was already off on this PC, so there are no frames to win back; the policy value is still written so a Windows update cannot switch it back on' } elseif (@($dg.SecurityServicesRunning) -contains 1) { Write-UTLog 'Credential Guard is running. If it was enabled with UEFI lock, Windows keeps the hypervisor on and this change will not take effect until you clear the lock.' -Level Warn } } catch { }",
+      "Invoke-UTBcdEdit -Arguments '/set hypervisorlaunchtype off'"
+    ],
+    "UndoScript": [
+      "Invoke-UTBcdEdit -Arguments '/set hypervisorlaunchtype Auto'"
+    ]
+  },
+  "UTDynamicTickOff": {
+    "Content": "Dynamic timer tick off (bcdedit)",
+    "Description": "RISKY. Keeps the clock interrupt at a fixed rate instead of tickless idle. Microsoft documents this as a debugging option; there is no reproducible FPS benchmark either way and it costs idle power. If BitLocker or Device Encryption is on, protection is suspended for one reboot first so you do not get a recovery-key prompt. Reboot required.",
+    "Evidence": "disabledynamictick is a documented BCDEdit option that Microsoft lists for debugging (Microsoft Learn, BCDEdit /set). No reproducible FPS benchmark exists either way, and it costs idle power. Confidence: high that it does what it says, low for any gain.",
+    "Category": "Risky",
+    "Tier": "risky",
+    "Recommended": false,
+    "Order": 202,
+    "Reboot": true,
+    "InvokeScript": [
+      "Invoke-UTBcdEdit -Arguments '/set disabledynamictick yes'"
+    ],
+    "UndoScript": [
+      "Invoke-UTBcdEdit -Arguments '/deletevalue disabledynamictick'"
+    ]
+  },
+  "UTTimerResGlobal": {
+    "Content": "Global timer resolution requests (Windows 11)",
+    "Description": "RISKY. Windows 11 / Server 2022 only key: it makes one process's high timer-resolution request apply system-wide again, the way Windows did before 10 v2004. It does nothing on its own - something still has to request the resolution - and this project ships no timer tool. Microsoft's own guidance, and valleyofdoom/TimerResolution, say it is for debugging. Costs idle power. Reboot required.",
+    "Evidence": "GlobalTimerResolutionRequests is the Windows 11 / Server 2022 key that restores the pre-2004 behaviour where one process's timer-resolution request applies system-wide (valleyofdoom/TimerResolution, which documents it as debugging-only). Inert on Windows 10. Confidence: medium.",
+    "Category": "Risky",
+    "Tier": "risky",
+    "Recommended": false,
+    "Order": 203,
+    "MinBuild": 22000,
+    "Reboot": true,
+    "registry": [
+      {
+        "Path": "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\kernel",
+        "Name": "GlobalTimerResolutionRequests",
+        "Type": "DWord",
+        "Value": "1",
+        "OriginalValue": "<RemoveEntry>"
+      }
+    ]
+  },
+  "UTMSIModeGPU": {
+    "Content": "Message Signaled Interrupts on the GPU",
+    "Description": "RISKY. Enables MSI mode on every display adapter that is still using line-based interrupts. Modern NVIDIA, AMD and Intel drivers already enable MSI, in which case nothing changes. On a device that does not support MSI the PC can hang at boot; recovery is Safe Mode. Per-device previous values are recorded for undo. Reboot required.",
+    "Evidence": "MSISupported=1 under Interrupt Management\\MessageSignaledInterruptProperties switches the device to message-signaled interrupts (Microsoft Learn, Enabling MSI). Modern GPU drivers already enable it; a device that cannot support it can hang at boot. Confidence: high.",
+    "Category": "Risky",
+    "Tier": "risky",
+    "Recommended": false,
+    "Order": 204,
+    "Reboot": true,
+    "InvokeScript": [
+      "Get-PnpDevice -Class Display -PresentOnly -ErrorAction SilentlyContinue | ForEach-Object { $inst = $_.InstanceId; if ($inst -notlike 'PCI\\*') { return }; $key = \"HKLM:\\SYSTEM\\CurrentControlSet\\Enum\\$inst\\Device Parameters\\Interrupt Management\\MessageSignaledInterruptProperties\"; $cur = $null; if (Test-Path $key) { $cur = (Get-ItemProperty $key -Name MSISupported -ErrorAction SilentlyContinue).MSISupported }; if ($null -eq $cur) { Save-UTScriptState -Id UTMSIModeGPU -Key $inst -Value 'missing' } else { Save-UTScriptState -Id UTMSIModeGPU -Key $inst -Value ([string]$cur) }; if ($cur -eq 1) { Write-UTLog \"$($_.FriendlyName): MSI already enabled, nothing to do\"; return }; if (-not (Test-Path $key)) { New-Item $key -Force | Out-Null }; Set-ItemProperty $key -Name MSISupported -Type DWord -Value 1 -Force; Write-UTLog \"$($_.FriendlyName): MSI enabled (previous value: $cur)\" }"
+    ],
+    "UndoScript": [
+      "$state = Get-UTScriptState -Id UTMSIModeGPU; if ($state) { foreach ($k in @($state.Keys)) { $key = \"HKLM:\\SYSTEM\\CurrentControlSet\\Enum\\$k\\Device Parameters\\Interrupt Management\\MessageSignaledInterruptProperties\"; if (-not (Test-Path $key)) { continue }; if ($state[$k] -eq 'missing') { Remove-ItemProperty $key -Name MSISupported -ErrorAction SilentlyContinue } else { Set-ItemProperty $key -Name MSISupported -Type DWord -Value ([int]$state[$k]) -Force }; Write-UTLog \"MSI setting restored for $k\" } }"
+    ]
+  },
+  "UTGamePriorityIFEO": {
+    "Content": "Fortnite process priority Above Normal (registry, survives EAC)",
+    "Description": "RISKY. Sets the Image File Execution Options PerfOptions CpuPriorityClass to Above Normal for FortniteClient-Win64-Shipping.exe. The kernel applies it at process start, so it works even though Easy Anti-Cheat blocks external priority changes. High and Realtime are deliberately not offered: they starve input and audio threads. No ban reports exist for priority changes; code injection is what gets people banned, and this injects nothing.",
+    "Evidence": "PerfOptions\\CpuPriorityClass under Image File Execution Options is applied by the loader when the process starts (IFEO PerfOptions reference); 6 is Above Normal. Because the kernel sets it rather than an external tool, Easy Anti-Cheat cannot block it. No ban reports exist for priority changes. Confidence: medium.",
+    "Category": "Risky",
+    "Tier": "risky",
+    "Recommended": false,
+    "Order": 205,
+    "registry": [
+      {
+        "Path": "HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Image File Execution Options\\FortniteClient-Win64-Shipping.exe\\PerfOptions",
+        "Name": "CpuPriorityClass",
+        "Type": "DWord",
+        "Value": "6",
+        "OriginalValue": "<RemoveEntry>"
+      }
+    ]
+  },
+  "UTCoreParkingOff": {
+    "Content": "Core parking off (plugged in)",
+    "Description": "RISKY. Forces all cores to stay unparked. Gives little or nothing on desktop CPUs that do not park, and actively hurts AMD X3D dual-CCD and Intel hybrid CPUs where Windows parks cores on purpose. X3D CPUs are skipped automatically. The previous value is recorded for undo.",
+    "Evidence": "CPMINCORES is the documented Processor performance core parking min cores power setting (Microsoft Learn); 100 keeps every core unparked. Since Skylake and Zen, parking control moved on-die, so the classic gain is mostly gone, and AMD X3D dual-CCD and Intel hybrid CPUs rely on parking to keep games on the right cores. Confidence: high.",
+    "Category": "Risky",
+    "Tier": "risky",
+    "Recommended": false,
+    "Order": 206,
+    "GuardScript": [
+      "$cpu = (Get-CimInstance Win32_Processor | Select-Object -First 1).Name; if ($cpu -match 'X3D') { throw \"refused on $cpu : this CPU relies on core parking to keep games on the V-Cache die\" }"
+    ],
+    "InvokeScript": [
+      "$cur = Get-UTPowerCfgIndex -SubGroup 'SUB_PROCESSOR' -Setting 'CPMINCORES'; if ($null -eq $cur) { throw 'could not read the current core parking minimum, so it was not changed' }; Save-UTScriptState -Id UTCoreParkingOff -Key CPMINCORES -Value $cur; powercfg /setacvalueindex SCHEME_CURRENT SUB_PROCESSOR CPMINCORES 100 | Out-Null; powercfg /setactive SCHEME_CURRENT | Out-Null"
+    ],
+    "UndoScript": [
+      "$cur = Get-UTScriptState -Id UTCoreParkingOff -Key CPMINCORES; if ($null -eq $cur -or $cur -eq '') { powercfg -restoredefaultschemes | Out-Null; Write-UTLog 'No recorded core parking value, so the power schemes were restored to Windows defaults' -Level Warn } else { powercfg /setacvalueindex SCHEME_CURRENT SUB_PROCESSOR CPMINCORES $cur | Out-Null; powercfg /setactive SCHEME_CURRENT | Out-Null }"
+    ]
+  },
+  "UTSysMainOff": {
+    "Content": "SysMain (Superfetch) off",
+    "Description": "RISKY (low value). Disables the memory prefetching service. On an SSD there is no measurable FPS gain and app launches get slower; some people report fewer HDD stutters. Included only because it is requested so often.",
+    "Evidence": "SysMain is the Superfetch/prefetch service. Windows already disables prefetch behaviour on SSDs, so there is no measurable FPS gain and app launches get slower. Kept only because it is requested so often. Confidence: medium.",
+    "Category": "Risky",
+    "Tier": "risky",
+    "Recommended": false,
+    "Order": 207,
+    "service": [
+      {
+        "Name": "SysMain",
+        "StartupType": "Disabled",
+        "OriginalType": "Automatic"
+      }
+    ],
+    "Reboot": true
+  }
+}

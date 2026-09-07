@@ -1,0 +1,37 @@
+{
+  "KnownGames": {
+    "FortniteClient-Win64-Shipping": "Fortnite",
+    "VALORANT-Win64-Shipping": "VALORANT",
+    "cs2": "Counter-Strike 2",
+    "csgo": "CS:GO",
+    "r5apex": "Apex Legends",
+    "r5apex_dx12": "Apex Legends",
+    "Marvel-Win64-Shipping": "Marvel Rivals",
+    "Overwatch": "Overwatch 2",
+    "RobloxPlayerBeta": "Roblox",
+    "GTA5": "GTA V",
+    "GTA5_Enhanced": "GTA V Enhanced",
+    "RainbowSix": "Rainbow Six Siege",
+    "RainbowSix_Vulkan": "Rainbow Six Siege",
+    "RainbowSix_DX11": "Rainbow Six Siege",
+    "RocketLeague": "Rocket League",
+    "cod": "Call of Duty",
+    "ModernWarfare": "Call of Duty MW",
+    "BlackOpsColdWar": "CoD Cold War",
+    "javaw": "Minecraft (Java)",
+    "Minecraft.Windows": "Minecraft Bedrock",
+    "League of Legends": "League of Legends",
+    "TslGame": "PUBG",
+    "DeadByDaylight-Win64-Shipping": "Dead by Daylight",
+    "dota2": "Dota 2",
+    "Warframe.x64": "Warframe",
+    "eldenring": "Elden Ring",
+    "Cyberpunk2077": "Cyberpunk 2077"
+  },
+  "ShellBlacklist": [
+    "explorer", "ApplicationFrameHost", "LockApp", "SearchHost", "SearchApp", "SearchUI", "StartMenuExperienceHost",
+    "ShellExperienceHost", "dwm", "TextInputHost", "Widgets", "LogonUI", "csrss", "winlogon", "Taskmgr", "SystemSettings",
+    "sihost", "powershell", "powershell_ise", "pwsh", "WindowsTerminal", "conhost", "msedge", "chrome", "firefox", "brave",
+    "Discord", "steam", "steamwebhelper", "EpicGamesLauncher", "EpicWebHelper", "RiotClientUx", "RiotClientServices", "Code", "devenv"
+  ]
+}

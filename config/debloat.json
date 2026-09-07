@@ -1,0 +1,194 @@
+{
+  "Microsoft.549981C3F5F10": {
+    "Content": "Cortana",
+    "Category": "Ads and assistants",
+    "Recommended": true,
+    "Note": "The voice assistant. Retired as an app by Microsoft; Start menu search does not need it."
+  },
+  "Microsoft.Copilot": {
+    "Content": "Copilot",
+    "Category": "Ads and assistants",
+    "Recommended": true,
+    "Note": "The Copilot app. Reinstallable from the Store if you want it back."
+  },
+  "Microsoft.BingNews": {
+    "Content": "Bing News",
+    "Category": "Ads and assistants",
+    "Recommended": true,
+    "Note": "News feed app. Pairs with the news and interests tweak in TWEAKS."
+  },
+  "Microsoft.BingWeather": {
+    "Content": "Weather",
+    "Category": "Ads and assistants",
+    "Recommended": true,
+    "Note": "Also the source of the taskbar weather widget's data."
+  },
+  "MicrosoftWindows.Client.WebExperience": {
+    "Content": "Windows Web Experience Pack (Widgets board)",
+    "Category": "Ads and assistants",
+    "Recommended": false,
+    "Note": "Windows 11 only, and it hosts the Widgets board and its background process. Not recommended here because the Widgets tweak in TWEAKS already stops it running and can be undone; this removes it. Reinstallable from the Store as Windows Web Experience Pack."
+  },
+  "Microsoft.BingSearch": {
+    "Content": "Web search in Start",
+    "Category": "Ads and assistants",
+    "Recommended": true,
+    "Note": "The web results component of Start search. Local file and app search is unaffected."
+  },
+  "Microsoft.MicrosoftOfficeHub": {
+    "Content": "Office / Microsoft 365 hub",
+    "Category": "Ads and assistants",
+    "Recommended": true,
+    "Note": "The 'Get Office' promotion tile. Not Office itself: a real Office install is untouched."
+  },
+  "Microsoft.MicrosoftSolitaireCollection": {
+    "Content": "Solitaire Collection",
+    "Category": "Ads and assistants",
+    "Recommended": true,
+    "Note": "Ad-supported card games."
+  },
+  "Microsoft.GetHelp": {
+    "Content": "Get Help",
+    "Category": "Ads and assistants",
+    "Recommended": true,
+    "Note": "Support chat app. Some Settings troubleshooter links stop working."
+  },
+  "Microsoft.Getstarted": {
+    "Content": "Tips",
+    "Category": "Ads and assistants",
+    "Recommended": true,
+    "Note": "The 'Get started' / Tips tour."
+  },
+  "Microsoft.WindowsFeedbackHub": {
+    "Content": "Feedback Hub",
+    "Category": "Ads and assistants",
+    "Recommended": true,
+    "Note": "Only needed if you file Windows Insider feedback."
+  },
+  "Microsoft.Windows.DevHome": {
+    "Content": "Dev Home",
+    "Category": "Ads and assistants",
+    "Recommended": true,
+    "Note": "Developer dashboard shipped with Windows 11. Nothing depends on it."
+  },
+  "Microsoft.MixedReality.Portal": {
+    "Content": "Mixed Reality Portal",
+    "Category": "Ads and assistants",
+    "Recommended": true,
+    "Note": "Windows Mixed Reality was discontinued in 2024. Dead weight unless you own a WMR headset."
+  },
+  "Microsoft.Microsoft3DViewer": {
+    "Content": "3D Viewer",
+    "Category": "Ads and assistants",
+    "Recommended": true,
+    "Note": "3D model viewer. Removed from new Windows installs anyway."
+  },
+  "Microsoft.Print3D": {
+    "Content": "Print 3D",
+    "Category": "Ads and assistants",
+    "Recommended": true,
+    "Note": "3D printing app. Removed from new Windows installs anyway."
+  },
+  "Microsoft.SkypeApp": {
+    "Content": "Skype",
+    "Category": "Communication",
+    "Recommended": true,
+    "Note": "Consumer Skype was retired in May 2025."
+  },
+  "Microsoft.YourPhone": {
+    "Content": "Phone Link",
+    "Category": "Communication",
+    "Recommended": false,
+    "Note": "Links an Android or iPhone to the PC. Remove only if you do not use it: it runs a background service."
+  },
+  "MicrosoftWindows.CrossDevice": {
+    "Content": "Cross Device (Phone Link companion)",
+    "Category": "Communication",
+    "Recommended": false,
+    "Note": "The newer half of Phone Link, including phone-as-webcam. Remove together with Phone Link or not at all."
+  },
+  "Microsoft.People": {
+    "Content": "People",
+    "Category": "Communication",
+    "Recommended": true,
+    "Note": "Contacts app used by the retired Mail client."
+  },
+  "microsoft.windowscommunicationsapps": {
+    "Content": "Mail and Calendar",
+    "Category": "Communication",
+    "Recommended": false,
+    "Note": "The classic Mail and Calendar apps, retired at the end of 2024 in favour of the new Outlook. Remove only if you do not read mail here."
+  },
+  "Microsoft.OutlookForWindows": {
+    "Content": "Outlook (new)",
+    "Category": "Communication",
+    "Recommended": false,
+    "Note": "The web-based Outlook that replaced Mail. Remove only if you do not read mail here."
+  },
+  "Microsoft.ZuneMusic": {
+    "Content": "Media Player / Groove Music",
+    "Category": "Media",
+    "Recommended": false,
+    "Note": "The default music and media player. Removing it leaves audio files with no default app until you set one."
+  },
+  "Microsoft.ZuneVideo": {
+    "Content": "Films and TV",
+    "Category": "Media",
+    "Recommended": false,
+    "Note": "The default video player and the Microsoft video store."
+  },
+  "Microsoft.WindowsMaps": {
+    "Content": "Maps",
+    "Category": "Media",
+    "Recommended": true,
+    "Note": "Offline maps app. Its updater task is one of the ones the Telemetry tweak disables."
+  },
+  "Microsoft.WindowsSoundRecorder": {
+    "Content": "Sound Recorder",
+    "Category": "Media",
+    "Recommended": false,
+    "Note": "Voice recorder."
+  },
+  "Microsoft.WindowsAlarms": {
+    "Content": "Clock (alarms and timers)",
+    "Category": "Media",
+    "Recommended": false,
+    "Note": "Alarms, timers and focus sessions."
+  },
+  "Microsoft.MicrosoftStickyNotes": {
+    "Content": "Sticky Notes",
+    "Category": "Media",
+    "Recommended": false,
+    "Note": "Desktop notes."
+  },
+  "Microsoft.XboxApp": {
+    "Content": "Xbox Console Companion (old)",
+    "Category": "Xbox - read the warning",
+    "Recommended": true,
+    "Note": "The deprecated Windows 10 Xbox app, replaced by the Xbox / Game Pass app. Safe: nothing signs in through it any more."
+  },
+  "Microsoft.XboxGamingOverlay": {
+    "Content": "Xbox Game Bar",
+    "Category": "Xbox - read the warning",
+    "Recommended": false,
+    "Note": "Win+G overlay, the built-in FPS counter and Win+Alt+R capture. Removing it also removes the per-game Game Mode toggle UI. Keep it if you use any of that."
+  },
+  "Microsoft.XboxGameOverlay": {
+    "Content": "Xbox Game Bar overlay component",
+    "Category": "Xbox - read the warning",
+    "Recommended": false,
+    "Note": "The companion package to Game Bar. Remove together with Game Bar or not at all."
+  },
+  "Microsoft.XboxSpeechToTextOverlay": {
+    "Content": "Xbox game chat transcription",
+    "Category": "Xbox - read the warning",
+    "Recommended": false,
+    "Note": "Speech-to-text for Xbox party chat."
+  },
+  "Microsoft.Xbox.TCUI": {
+    "Content": "Xbox in-game UI (TCUI)",
+    "Category": "Xbox - read the warning",
+    "Recommended": false,
+    "Note": "Draws the Xbox account, friends and achievement panels inside games. Some Game Pass and Microsoft-published titles fail to open those panels without it. Leave it unless you are sure."
+  }
+}

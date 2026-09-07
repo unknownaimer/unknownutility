@@ -1,0 +1,167 @@
+{
+  "GameProcess": "FortniteClient-Win64-Shipping",
+  "BlockingProcesses": [ "FortniteClient-Win64-Shipping", "FortniteLauncher", "FortniteClient-Win64-Shipping_EAC_EOS", "FortniteClient-Win64-Shipping_EAC", "FortniteClient-Win64-Shipping_BE" ],
+  "LauncherProcesses": [ "EpicGamesLauncher", "EpicWebHelper", "EpicOnlineServicesUserHelper" ],
+  "LaunchUri": "com.epicgames.launcher://apps/fn%3A4fe75bbc5a674f4f9b356b5c90567da5%3AFortnite?action=launch&silent=true",
+  "MainSection": "/Script/FortniteGame.FortGameUserSettings",
+  "Profiles": {
+    "MaxFPS": {
+      "Content": "Max FPS (Performance Mode, everything low)",
+      "Description": "What most competitive players run: Performance Mode renderer, every quality group at the lowest in-game level, Nanite, Lumen and ray tracing off, anti-aliasing off, Reflex On+Boost, VSync and motion blur off, uncapped FPS. Every key here is one the in-game Video menu exposes.",
+      "Settings": {
+        "/Script/FortniteGame.FortGameUserSettings": {
+          "FullscreenMode": "0",
+          "LastConfirmedFullscreenMode": "0",
+          "PreferredFullscreenMode": "0",
+          "FrameRateLimit": "0.000000",
+          "bUseVSync": "False",
+          "bUseDynamicResolution": "False",
+          "bMotionBlur": "False",
+          "LatencyTweak2": "2",
+          "bLatencyTweak1": "False",
+          "bLatencyFlash": "False",
+          "FortAntiAliasingMethod": "Disabled",
+          "DLSSQuality": "0",
+          "XeSSQuality": "0",
+          "bEnableDLSSFrameGeneration": "False",
+          "bUseNanite": "False",
+          "DesiredGlobalIlluminationQuality": "0",
+          "DesiredReflectionQuality": "0",
+          "PreNaniteGlobalIlluminationQuality": "0",
+          "PreNaniteReflectionQuality": "0",
+          "bRayTracing": "False",
+          "bUseGPUCrashDebugging": "False",
+          "CosmeticStreamingEnabled": "CodeSet_Disabled",
+          "bUseHDRDisplayOutput": "False"
+        },
+        "ScalabilityGroups": {
+          "sg.ResolutionQuality": "100",
+          "sg.ViewDistanceQuality": "0",
+          "sg.AntiAliasingQuality": "0",
+          "sg.ShadowQuality": "0",
+          "sg.GlobalIlluminationQuality": "0",
+          "sg.ReflectionQuality": "0",
+          "sg.PostProcessQuality": "0",
+          "sg.TextureQuality": "0",
+          "sg.EffectsQuality": "0",
+          "sg.FoliageQuality": "0",
+          "sg.ShadingQuality": "0",
+          "sg.LandscapeQuality": "0"
+        },
+        "D3DRHIPreference": {
+          "PreferredRHI": "dx12",
+          "PreferredFeatureLevel": "es31"
+        },
+        "PerformanceMode": {
+          "MeshQuality": "0"
+        },
+        "RayTracing": {
+          "r.RayTracing.EnableInGame": "False"
+        }
+      }
+    },
+    "Balanced": {
+      "Content": "Balanced (DirectX 12, low shadows and effects, textures medium)",
+      "Description": "DirectX 12 renderer with view distance at Epic so distant builds stay visible, textures at Medium, and shadows, post processing, effects, foliage, Lumen and Nanite off. For mid-range and high-end GPUs that want the full renderer without the expensive parts.",
+      "Settings": {
+        "/Script/FortniteGame.FortGameUserSettings": {
+          "FullscreenMode": "0",
+          "LastConfirmedFullscreenMode": "0",
+          "PreferredFullscreenMode": "0",
+          "FrameRateLimit": "0.000000",
+          "bUseVSync": "False",
+          "bUseDynamicResolution": "False",
+          "bMotionBlur": "False",
+          "LatencyTweak2": "2",
+          "bLatencyTweak1": "False",
+          "bLatencyFlash": "False",
+          "FortAntiAliasingMethod": "Disabled",
+          "bEnableDLSSFrameGeneration": "False",
+          "bUseNanite": "False",
+          "DesiredGlobalIlluminationQuality": "0",
+          "DesiredReflectionQuality": "0",
+          "PreNaniteGlobalIlluminationQuality": "0",
+          "PreNaniteReflectionQuality": "0",
+          "bRayTracing": "False",
+          "bUseGPUCrashDebugging": "False",
+          "CosmeticStreamingEnabled": "CodeSet_Disabled"
+        },
+        "ScalabilityGroups": {
+          "sg.ResolutionQuality": "100",
+          "sg.ViewDistanceQuality": "3",
+          "sg.AntiAliasingQuality": "0",
+          "sg.ShadowQuality": "0",
+          "sg.GlobalIlluminationQuality": "0",
+          "sg.ReflectionQuality": "0",
+          "sg.PostProcessQuality": "0",
+          "sg.TextureQuality": "2",
+          "sg.EffectsQuality": "0",
+          "sg.FoliageQuality": "0",
+          "sg.ShadingQuality": "0",
+          "sg.LandscapeQuality": "0"
+        },
+        "D3DRHIPreference": {
+          "PreferredRHI": "dx12",
+          "PreferredFeatureLevel": "sm6"
+        },
+        "RayTracing": {
+          "r.RayTracing.EnableInGame": "False"
+        }
+      }
+    },
+    "LatencyOnly": {
+      "Content": "Latency only (keep my visuals)",
+      "Description": "Changes nothing about image quality. Sets NVIDIA Reflex to On+Boost, VSync off, motion blur off, dynamic resolution off, DLSS Frame Generation off (it adds latency) and exclusive fullscreen.",
+      "Settings": {
+        "/Script/FortniteGame.FortGameUserSettings": {
+          "FullscreenMode": "0",
+          "LastConfirmedFullscreenMode": "0",
+          "PreferredFullscreenMode": "0",
+          "bUseVSync": "False",
+          "bUseDynamicResolution": "False",
+          "bMotionBlur": "False",
+          "LatencyTweak2": "2",
+          "bLatencyTweak1": "False",
+          "bLatencyFlash": "False",
+          "bEnableDLSSFrameGeneration": "False"
+        }
+      }
+    }
+  },
+  "HiddenKeys": {
+    "UTFNGrassOff": {
+      "Content": "Hidden key: bShowGrass=False",
+      "Description": "Not in the Video menu on PC. Present as False in most performance configs; reports disagree on whether it does anything in Performance Mode. Low risk, not a cvar edit.",
+      "Section": "/Script/FortniteGame.FortGameUserSettings",
+      "Key": "bShowGrass",
+      "Value": "False"
+    },
+    "UTFNLobbyCap": {
+      "Content": "Hidden key: lobby FPS cap 120",
+      "Description": "FrontendFrameRateLimit=120 caps the lobby and menus so the GPU does not run flat out while you sit in the lobby. Not exposed in the PC menu.",
+      "Section": "/Script/FortniteGame.FortGameUserSettings",
+      "Key": "FrontendFrameRateLimit",
+      "Value": "120"
+    }
+  },
+  "LaunchArgs": {
+    "Options": [
+      { "Arg": "-NOSPLASH", "Content": "Skip the splash screen", "Description": "Parsed by the engine (WindowsPlatformSplash.cpp). Cosmetic, saves a second at launch.", "Default": true },
+      { "Arg": "-FeatureLevelES31", "Content": "Force Performance Mode renderer", "Description": "Forces the ES3.1 feature level, which is what Performance Mode uses. Redundant if the profile already sets it, but guarantees it even if the game rewrites the config.", "Default": false },
+      { "Arg": "-d3d12 -sm6", "Content": "Force DirectX 12 (Shader Model 6)", "Description": "Forces the D3D12 RHI and SM6. Use instead of the Performance Mode flag, never both.", "Default": false, "Excludes": "-FeatureLevelES31" },
+      { "Arg": "-d3d11", "Content": "Legacy DirectX 11 Performance Mode (older NVIDIA cards)", "Description": "Brings back the DX11 renderer Epic removed from the Rendering Mode menu. The D3D11 RHI still ships and this flag still forces it (verified on client 42.10: 'Using Forced RHI: D3D11'); the engine then caps at the ES3.1 feature level, so this is the old DX11 Performance Mode, not full DX11. Best bet on GTX 10/16-series and other older NVIDIA cards, or if DX12 Performance Mode stutters. On RTX cards with current drivers Epic's DX12 Performance Mode is usually the better choice. Cannot be combined with the DirectX 12 flag.", "Default": false, "Excludes": "-d3d12 -sm6" },
+      { "Arg": "-nosound", "Content": "No audio device", "Description": "Only for testing FPS without sound; you will not hear footsteps.", "Default": false }
+    ],
+    "Placebo": [
+      { "Arg": "-USEALLAVAILABLECORES", "Reason": "In the engine source it only affects compressed archive worker threads. No FPS effect." },
+      { "Arg": "-lanplay", "Reason": "Server-only code path (UWorld::Listen). Does nothing on a client." },
+      { "Arg": "-limitclientticks", "Reason": "Server-only throttle of client connections. Does nothing on a client, and the =120 form never even matches." },
+      { "Arg": "-PREFERREDPROCESSOR", "Reason": "Does not exist in the engine source at all; it only lives in old documentation." },
+      { "Arg": "-high", "Reason": "A Source engine (Counter-Strike) switch. Unreal never parses it." },
+      { "Arg": "-malloc=system", "Reason": "Allocator switches are compiled out of Shipping builds." },
+      { "Arg": "-NOVERIFYGC", "Reason": "Already off in Shipping builds." },
+      { "Arg": "-NOTEXTURESTREAMING", "Reason": "Works and is harmful: loads every texture at full size and exhausts VRAM. Epic has a support article about removing it." },
+      { "Arg": "-onethread", "Reason": "Disables the render thread. Massive FPS loss." }
+    ]
+  }
+}

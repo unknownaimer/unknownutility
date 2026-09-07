@@ -1,0 +1,17 @@
+name = "unknowntweaks-gate"
+main = "worker.js"
+compatibility_date = "2026-09-01"
+
+# The private repository the gate reads the compiled script from. The token is a secret, not a var:
+#   wrangler secret put GH_TOKEN
+[vars]
+GH_OWNER = "unknownaimer"
+GH_REPO = "unknownutility"
+GH_BRANCH = "main"
+GH_FILE = "unknowntweaks.ps1"
+
+# Create it once, paste the id it prints:
+#   wrangler kv namespace create GATE
+[[kv_namespaces]]
+binding = "GATE"
+id = "paste-the-namespace-id-here"

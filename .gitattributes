@@ -1,0 +1,16 @@
+# Normalise line endings in the repository so a contributor on a different core.autocrlf
+# setting does not produce whole-file diffs. Sources are stored as LF; checkout follows the
+# machine's setting. Windows PowerShell 5.1 reads either.
+* text=auto
+
+*.ps1  text
+*.json text
+*.xaml text
+*.md   text
+*.yml  text
+LICENSE text
+
+# Never touch these if they ever appear.
+*.png  binary
+*.jpg  binary
+*.zip  binary

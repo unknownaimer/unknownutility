@@ -1,0 +1,188 @@
+{
+  "Discord": {
+    "Winget": "Discord.Discord",
+    "Category": "Gaming"
+  },
+  "Steam": {
+    "Winget": "Valve.Steam",
+    "Category": "Gaming"
+  },
+  "Epic Games Launcher": {
+    "Winget": "EpicGames.EpicGamesLauncher",
+    "Category": "Gaming"
+  },
+  "Battle.net": {
+    "Winget": "Blizzard.BattleNet",
+    "Category": "Gaming"
+  },
+  "EA app": {
+    "Winget": "ElectronicArts.EADesktop",
+    "Category": "Gaming"
+  },
+  "Ubisoft Connect": {
+    "Winget": "Ubisoft.Connect",
+    "Category": "Gaming"
+  },
+  "VALORANT (NA)": {
+    "Winget": "RiotGames.Valorant.NA",
+    "Category": "Gaming"
+  },
+  "VALORANT (EU)": {
+    "Winget": "RiotGames.Valorant.EU",
+    "Category": "Gaming"
+  },
+  "Medal": {
+    "Winget": "MedalB.V.Medal",
+    "Category": "Gaming"
+  },
+  "Parsec": {
+    "Winget": "Parsec.Parsec",
+    "Category": "Gaming"
+  },
+  "MSI Afterburner": {
+    "Winget": "Guru3D.Afterburner",
+    "Category": "Monitoring",
+    "Note": "winget ships 4.6.6. Riot Vanguard blocks older RTCore64 driver builds; if it still gets blocked, untick \"Enable low-level IO driver\" in Afterburner settings"
+  },
+  "RivaTuner Statistics Server": {
+    "Winget": "Guru3D.RTSS",
+    "Category": "Monitoring"
+  },
+  "HWiNFO": {
+    "Winget": "REALiX.HWiNFO",
+    "Category": "Monitoring"
+  },
+  "CrystalDiskInfo": {
+    "Winget": "CrystalDewWorld.CrystalDiskInfo",
+    "Category": "Monitoring"
+  },
+  "CrystalDiskMark": {
+    "Winget": "CrystalDewWorld.CrystalDiskMark",
+    "Category": "Monitoring"
+  },
+  "Visual C++ 2015-2022 x64": {
+    "Winget": "Microsoft.VCRedist.2015+.x64",
+    "Category": "Runtimes",
+    "Note": "Fixes most missing DLL crashes"
+  },
+  "Visual C++ 2015-2022 x86": {
+    "Winget": "Microsoft.VCRedist.2015+.x86",
+    "Category": "Runtimes"
+  },
+  "DirectX End-User Runtime": {
+    "Winget": "Microsoft.DirectX",
+    "Category": "Runtimes"
+  },
+  ".NET Desktop Runtime 8": {
+    "Winget": "Microsoft.DotNet.DesktopRuntime.8",
+    "Category": "Runtimes"
+  },
+  ".NET Desktop Runtime 6": {
+    "Winget": "Microsoft.DotNet.DesktopRuntime.6",
+    "Category": "Runtimes",
+    "Note": "Out of support since November 2024; only install it if a specific old game or tool asks for it"
+  },
+  "Cloudflare WARP": {
+    "Winget": "Cloudflare.Warp",
+    "Category": "Network",
+    "Note": "Free tunnel; can lower or raise game ping, measure with the region pinger before and after"
+  },
+  "OBS Studio": {
+    "Winget": "OBSProject.OBSStudio",
+    "Category": "Streaming"
+  },
+  "ShareX": {
+    "Winget": "ShareX.ShareX",
+    "Category": "Streaming"
+  },
+  "7-Zip": {
+    "Winget": "7zip.7zip",
+    "Category": "Utilities"
+  },
+  "PowerToys": {
+    "Winget": "Microsoft.PowerToys",
+    "Category": "Utilities"
+  },
+  "Everything (search)": {
+    "Winget": "voidtools.Everything",
+    "Category": "Utilities"
+  },
+  "Notepad++": {
+    "Winget": "Notepad++.Notepad++",
+    "Category": "Utilities"
+  },
+  "Windows Terminal": {
+    "Winget": "Microsoft.WindowsTerminal",
+    "Category": "Utilities"
+  },
+  "Revo Uninstaller": {
+    "Winget": "RevoUninstaller.RevoUninstaller",
+    "Category": "Utilities"
+  },
+  "Process Lasso": {
+    "Winget": "BitSum.ProcessLasso",
+    "Category": "Utilities"
+  },
+  "Bitwarden": {
+    "Winget": "Bitwarden.Bitwarden",
+    "Category": "Utilities"
+  },
+  "qBittorrent": {
+    "Winget": "qBittorrent.qBittorrent",
+    "Category": "Utilities"
+  },
+  "Malwarebytes": {
+    "Winget": "Malwarebytes.Malwarebytes",
+    "Category": "Utilities"
+  },
+  "Google Chrome": {
+    "Winget": "Google.Chrome",
+    "Category": "Browsers"
+  },
+  "Firefox": {
+    "Winget": "Mozilla.Firefox",
+    "Category": "Browsers"
+  },
+  "Brave": {
+    "Winget": "Brave.Brave",
+    "Category": "Browsers"
+  },
+  "VLC": {
+    "Winget": "VideoLAN.VLC",
+    "Category": "Media"
+  },
+  "Spotify": {
+    "Winget": "Spotify.Spotify",
+    "Category": "Media",
+    "Note": "Its installer refuses to run elevated, so this one fails from unknowntweaks; install it from a normal PowerShell window"
+  },
+  "Visual Studio Code": {
+    "Winget": "Microsoft.VisualStudioCode",
+    "Category": "Development"
+  },
+  "Git": {
+    "Winget": "Git.Git",
+    "Category": "Development"
+  },
+  "VALORANT (AP)": {
+    "Winget": "RiotGames.Valorant.AP",
+    "Category": "Gaming"
+  },
+  "VALORANT (BR)": {
+    "Winget": "RiotGames.Valorant.BR",
+    "Category": "Gaming"
+  },
+  "VALORANT (KR)": {
+    "Winget": "RiotGames.Valorant.KR",
+    "Category": "Gaming"
+  },
+  "VALORANT (LATAM)": {
+    "Winget": "RiotGames.Valorant.LATAM",
+    "Category": "Gaming"
+  },
+  ".NET Desktop Runtime 10": {
+    "Winget": "Microsoft.DotNet.DesktopRuntime.10",
+    "Category": "Runtimes",
+    "Note": "Current long-term-support runtime"
+  }
+}

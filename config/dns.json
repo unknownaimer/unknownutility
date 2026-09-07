@@ -1,0 +1,9 @@
+{
+  "Cloudflare": { "Primary": "1.1.1.1", "Secondary": "1.0.0.1", "Primary6": "2606:4700:4700::1111", "Secondary6": "2606:4700:4700::1001", "DohTemplate": "https://cloudflare-dns.com/dns-query", "Note": "Fastest for most people; no filtering" },
+  "Google": { "Primary": "8.8.8.8", "Secondary": "8.8.4.4", "Primary6": "2001:4860:4860::8888", "Secondary6": "2001:4860:4860::8844", "DohTemplate": "https://dns.google/dns-query", "Note": "Large anycast network; no filtering" },
+  "Quad9": { "Primary": "9.9.9.9", "Secondary": "149.112.112.112", "Primary6": "2620:fe::fe", "Secondary6": "2620:fe::9", "DohTemplate": "https://dns.quad9.net/dns-query", "Note": "Blocks known malware domains" },
+  "Quad9 ECS": { "Primary": "9.9.9.11", "Secondary": "149.112.112.11", "Primary6": "2620:fe::11", "Secondary6": "2620:fe::fe:11", "DohTemplate": "https://dns11.quad9.net/dns-query", "Note": "Quad9 with client subnet, steers CDNs to a closer edge (faster patch downloads)" },
+  "OpenDNS": { "Primary": "208.67.222.222", "Secondary": "208.67.220.220", "Primary6": "2620:119:35::35", "Secondary6": "2620:119:53::53", "DohTemplate": "https://doh.opendns.com/dns-query", "Note": "Cisco; optional content filtering" },
+  "AdGuard": { "Primary": "94.140.14.14", "Secondary": "94.140.15.15", "Primary6": "2a10:50c0::ad1:ff", "Secondary6": "2a10:50c0::ad2:ff", "DohTemplate": "https://dns.adguard-dns.com/dns-query", "Note": "Blocks ads and trackers" },
+  "Control D": { "Primary": "76.76.2.0", "Secondary": "76.76.10.0", "Primary6": "2606:1a40::", "Secondary6": "2606:1a40:1::", "DohTemplate": "https://freedns.controld.com/p0", "Note": "Unfiltered free tier" }
+}

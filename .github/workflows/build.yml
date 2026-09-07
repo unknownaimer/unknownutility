@@ -1,0 +1,85 @@
+name: build
+
+# Rebuilds the single-file unknowntweaks.ps1 from source on every push so the one-liner always
+# serves a build that matches the repository. Also runs the static checks.
+on:
+  push:
+    branches: [main]
+    paths: ['config/**', 'functions/**', 'xaml/**', 'scripts/**', 'Compile.ps1', 'tools/**']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Static checks
+        shell: pwsh
+        run: ./tools/Test-Syntax.ps1
+
+      - name: Logic tests
+        shell: pwsh
+        run: ./tools/Test-Logic.ps1 -SkipNetwork
+
+      # While the beta lasts, set the repository variable GATE_URL (Settings > Secrets and variables >
+      # Actions > Variables) to the gate's origin, e.g. https://unknowntweaks-gate.you.workers.dev.
+      # With it set, every push produces a -Beta build (no licence, gated at start-up). Delete the
+      # variable when the beta ends and the next push produces the public MIT build.
+      - name: Compile
+        shell: pwsh
+        env:
+          GATE_URL: ${{ vars.GATE_URL }}
+          BUILD_VERSION: ${{ vars.BUILD_VERSION }}
+        run: |
+          $p = @{ Owner = '${{ github.repository_owner }}'; Repo = '${{ github.event.repository.name }}' }
+          if ($env:BUILD_VERSION) { $p.Version = $env:BUILD_VERSION }
+          if ($env:GATE_URL) {
+            $gate = $env:GATE_URL.TrimEnd('/')
+            $p.Beta = $true; $p.Url = "$gate/ut"; $p.StatusUrl = "$gate/status"
+            Write-Host "beta build, gated by $gate"
+          } else {
+            Write-Host "public build (GATE_URL not set)"
+          }
+          ./Compile.ps1 @p
+
+      - name: Parse the compiled file with Windows PowerShell 5.1
+        shell: powershell
+        run: |
+          $t = $null; $e = $null
+          [void][System.Management.Automation.Language.Parser]::ParseFile("$PWD\unknowntweaks.ps1", [ref]$t, [ref]$e)
+          if ($e.Count) { $e | ForEach-Object { Write-Host $_.Message }; exit 1 }
+          Write-Host "unknowntweaks.ps1 parses on $($PSVersionTable.PSVersion)"
+
+      - name: Commit the rebuilt file
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet -- unknowntweaks.ps1; then
+            echo "no change"
+          else
+            git add unknowntweaks.ps1
+            git commit -m "build: rebuild unknowntweaks.ps1"
+            git push
+          fi
+
+  # The window, the dynamic controls, the monitor and one worker job, built for real and pumped for a
+  # few seconds without ever being shown. This is the only check that catches a control the code
+  # reaches for but the XAML no longer has, a style key that stopped resolving, or a card that throws
+  # while it is being built. Kept as its own job so the rebuild above still lands if a runner is
+  # missing a performance counter. Windows PowerShell 5.1 (`shell: powershell`) is the runtime the
+  # tool actually ships on, and it defaults to STA, which WPF needs.
+  startup:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the window headlessly and run it
+        shell: powershell
+        run: ./tools/Test-Startup.ps1 -SkipNetwork
