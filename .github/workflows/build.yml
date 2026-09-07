@@ -30,20 +30,21 @@ jobs:
       # Actions > Variables) to the gate's origin, e.g. https://unknowntweaks-gate.unknownutility.workers.dev.
       # With it set, every push produces a -Beta build (no licence, gated at start-up). Delete the
       # variable when the beta ends and the next push produces the public MIT build.
+      # PRIVATE BETA. While GATE_URL below is non-empty every build is a -Beta build: no licence in
+      # the header, and it refuses to run unless the gate says "ok". To go public, blank this one
+      # line; the next build is the MIT public one and calls nothing.
       - name: Compile
         shell: pwsh
         env:
-          GATE_URL: ${{ vars.GATE_URL }}
-          BUILD_VERSION: ${{ vars.BUILD_VERSION }}
+          GATE_URL: https://unknowntweaks-gate.unknownutility.workers.dev
         run: |
           $p = @{ Owner = '${{ github.repository_owner }}'; Repo = '${{ github.event.repository.name }}' }
-          if ($env:BUILD_VERSION) { $p.Version = $env:BUILD_VERSION }
           if ($env:GATE_URL) {
             $gate = $env:GATE_URL.TrimEnd('/')
             $p.Beta = $true; $p.Url = "$gate/ut"; $p.StatusUrl = "$gate/status"
             Write-Host "beta build, gated by $gate"
           } else {
-            Write-Host "public build (GATE_URL not set)"
+            Write-Host "public build (GATE_URL blank)"
           }
           ./Compile.ps1 @p
 
