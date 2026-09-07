@@ -14,4 +14,4 @@ GH_FILE = "unknowntweaks.ps1"
 #   wrangler kv namespace create GATE
 [[kv_namespaces]]
 binding = "GATE"
-id = "paste-the-namespace-id-here"
+id = "d250b9e24708423aa76314c1197082c0"
