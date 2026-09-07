@@ -27,7 +27,7 @@ jobs:
         run: ./tools/Test-Logic.ps1 -SkipNetwork
 
       # While the beta lasts, set the repository variable GATE_URL (Settings > Secrets and variables >
-      # Actions > Variables) to the gate's origin, e.g. https://unknowntweaks-gate.you.workers.dev.
+      # Actions > Variables) to the gate's origin, e.g. https://unknowntweaks-gate.unknownutility.workers.dev.
       # With it set, every push produces a -Beta build (no licence, gated at start-up). Delete the
       # variable when the beta ends and the next push produces the public MIT build.
       - name: Compile
@@ -55,19 +55,30 @@ jobs:
           if ($e.Count) { $e | ForEach-Object { Write-Host $_.Message }; exit 1 }
           Write-Host "unknowntweaks.ps1 parses on $($PSVersionTable.PSVersion)"
 
+      # Only ever commits the one generated file, and rebases first: a re-run of an older run, or a
+      # push that lands while this job is building, must not be clobbered or make the job fail.
       - name: Commit the rebuilt file
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           if git diff --quiet -- unknowntweaks.ps1; then
             echo "no change"
-          else
-            git add unknowntweaks.ps1
-            git commit -m "build: rebuild unknowntweaks.ps1"
-            git push
+            exit 0
           fi
+          git add unknowntweaks.ps1
+          git commit -m "build: rebuild unknowntweaks.ps1"
+          for attempt in 1 2 3; do
+            if git push origin HEAD:${GITHUB_REF_NAME}; then
+              echo "pushed on attempt $attempt"
+              exit 0
+            fi
+            echo "push rejected, rebasing onto the current branch and retrying"
+            git pull --rebase origin ${GITHUB_REF_NAME} || exit 1
+          done
+          echo "could not push the rebuilt file after 3 attempts" >&2
+          exit 1
 
   # The window, the dynamic controls, the monitor and one worker job, built for real and pumped for a
   # few seconds without ever being shown. This is the only check that catches a control the code

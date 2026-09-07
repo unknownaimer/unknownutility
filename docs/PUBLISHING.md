@@ -104,12 +104,13 @@ The order of operations, so the one-liner never points at something public:
 3. Build the beta script and commit it:
 
    ```powershell
-   .\Compile.ps1 -Beta -Version 0.0.67 -StatusUrl https://GATE/status
+   .\Compile.ps1 -Beta -Version 0.0.67 -StatusUrl https://unknowntweaks-gate.unknownutility.workers.dev/status
    ```
 
-   To have the workflow build it that way on every push, add `-Beta -Url ... -StatusUrl ...` to
-   the Compile step in `.github/workflows/build.yml` for as long as the beta lasts.
-4. Hand each tester their own `irm "https://GATE/ut?k=<their key>" | iex`. Never post a key
+   The workflow builds it that way on every push by itself as long as the repository variable
+   `GATE_URL` is set (Settings > Secrets and variables > Actions > Variables); delete the variable
+   and the next build is the public one again.
+4. Hand each tester their own `irm "https://unknowntweaks-gate.unknownutility.workers.dev/ut?k=<their key>" | iex`. Never post a key
    anywhere shared.
 5. Revoke a key when its one-liner turns up where it should not; flip the kill switch if the
    whole build must stop. Both take effect on the next download and the next start-up.
