@@ -433,6 +433,8 @@
                   <StackPanel Orientation="Horizontal">
                     <Button Name="BtnRecommended" Content="Select recommended"/>
                     <Button Name="BtnClearTweaks" Content="Clear"/>
+                    <Button Name="BtnExportSel" Content="Export" ToolTip="Saves the ticked tweaks, the Fortnite and VALORANT profiles and the launch arguments to a small JSON file you can share. No machine facts, no snapshots."/>
+                    <Button Name="BtnImportSel" Content="Import" ToolTip="Loads a selection file: ticks the boxes and picks the profiles. Nothing is applied until you press Apply selected."/>
                     <CheckBox Name="ChkRestorePoint" Content="create a restore point first" IsChecked="True" VerticalAlignment="Center" Margin="8,0,0,0"/>
                   </StackPanel>
                 </DockPanel>
@@ -441,6 +443,23 @@
                 <StackPanel Name="TweaksPanel" Margin="8,4,8,16"/>
               </ScrollViewer>
             </DockPanel>
+          </TabItem>
+
+          <TabItem Header="SYSTEM">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+              <StackPanel Margin="8,4,8,16">
+                <TextBlock Text="This PC" Style="{StaticResource SectionHeader}"/>
+                <TextBlock Name="SysTierText" Style="{StaticResource Body}" Text=""/>
+                <StackPanel Orientation="Horizontal" Margin="8,6,0,4">
+                  <Button Name="BtnBenchmark" Content="Run benchmark (10 s)" Style="{StaticResource AccentButton}" ToolTip="CPU single core and all cores, memory copy, and the system disk read and written with the Windows cache bypassed. Synthetic and relative: 100 is the machine the tool was calibrated on (Ryzen 7 5800XT, DDR4, NVMe). It shows where this PC is CPU-bound or disk-bound; it is not a game benchmark and it does not change anything."/>
+                  <Button Name="BtnRecommendForPc" Content="Recommend for this PC" ToolTip="Reads the hardware facts (memory integrity and VBS state, laptop or desktop, disk type, GPU, CPU, Windows build) and the last benchmark, and lists the tweaks that apply here with the reason for each. Risky ones are named with their cost and are never ticked for you."/>
+                  <Button Name="BtnRecommendTick" Content="Tick them in TWEAKS" ToolTip="Ticks the safe and optional recommendations in the TWEAKS tab. Apply is still a separate step there."/>
+                </StackPanel>
+                <TextBox Name="BenchBox" IsReadOnly="True" Height="118" Margin="8,0,8,0" Text="not run yet" TextWrapping="NoWrap" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"/>
+                <TextBlock Text="Recommended on this PC" Style="{StaticResource SectionHeader}"/>
+                <StackPanel Name="RecommendPanel"/>
+              </StackPanel>
+            </ScrollViewer>
           </TabItem>
 
           <TabItem Header="FORTNITE">
@@ -472,8 +491,82 @@
                   <Button Name="BtnFnProbe" Content="Probe launcher key"/>
                   <Button Name="BtnFnProbeDone" Content="Finish probe"/>
                 </StackPanel>
+                <TextBlock Text="Live status (Epic)" Style="{StaticResource SectionHeader}"/>
+                <StackPanel Orientation="Horizontal" Margin="8,4,0,4">
+                  <Button Name="BtnFnLiveStatus" Content="Check Epic status" ToolTip="Asks status.epicgames.com through its public API: every Fortnite service, open incidents with Epic's latest update, and scheduled maintenance. So you know whether a problem is on Epic's side before you touch anything. The known gameplay bugs list is a web page; the result links it."/>
+                </StackPanel>
+                <TextBox Name="FnLiveStatusBox" IsReadOnly="True" Height="150" Margin="8,0,8,0" Text="not checked yet" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"/>
               </StackPanel>
             </ScrollViewer>
+          </TabItem>
+
+          <TabItem Header="VALORANT">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+              <StackPanel Margin="8,4,8,16">
+                <TextBlock Text="VALORANT" Style="{StaticResource SectionHeader}"/>
+                <TextBlock Name="VaStatusText" Style="{StaticResource Body}" Text="detecting..."/>
+                <TextBlock Text="Settings profile" Style="{StaticResource SectionHeader}" ToolTip="Resolution, VSync, frame cap and letterboxing are Unreal settings in GameUserSettings.ini; the quality groups the Video menu shows are Riot's own keys in RiotUserSettings.ini. Both are per-player user settings that Riot documents as editable; Vanguard cares about code injected into the game, not about these files. Both are backed up before the first write."/>
+                <ListBox Name="VaProfileList" Margin="8,4,8,4" Height="72"/>
+                <TextBlock Name="VaProfileDesc" Style="{StaticResource Dim}" Text=""/>
+                <StackPanel Orientation="Horizontal" Margin="8,10,0,0">
+                  <Button Name="BtnVaApply" Content="Apply profile" Style="{StaticResource AccentButton}" ToolTip="Key-level merge into the active player's files while VALORANT is closed (the game rewrites them on exit; the Riot client in the tray does not touch them). If the game later shows different values, Riot's roaming settings won the sync; apply again with the game closed."/>
+                  <Button Name="BtnVaRestore" Content="Restore original files"/>
+                  <Button Name="BtnVaLaunch" Content="Launch VALORANT" ToolTip="Starts the game through the Riot client, the same way its shortcut does."/>
+                  <Button Name="BtnVaShaderCache" Content="Clear shader caches" ToolTip="Deletes the NVIDIA or AMD driver shader caches. The first launch afterwards stutters while they rebuild; a stutter fix, not a boost."/>
+                  <Button Name="BtnVaRefresh" Content="Refresh"/>
+                </StackPanel>
+              </StackPanel>
+            </ScrollViewer>
+          </TabItem>
+
+          <TabItem Header="STRETCHED">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+              <StackPanel Margin="8,4,8,16">
+                <TextBlock Text="True stretched resolution" Style="{StaticResource SectionHeader}" ToolTip="True stretched means the display mode itself changes and the GPU scaler fills the screen, so the game renders fewer pixels and nothing is letterboxed. This tab creates the mode through the NVIDIA driver's own API when Windows does not already offer it, switches the desktop, sets Windows display scaling to Stretched (the SetDisplayConfig API, saved for that mode), writes the game's resolution, launches it, and puts everything back when it closes. If your GPU still shows black bars, set Full-screen scaling once in its control panel (NVIDIA: Adjust desktop size and position > Full-screen, perform scaling on GPU); that is a per-driver setting no app can force for every vendor. VALORANT locks fullscreen to the monitor's native aspect ratio, so for it the monitor device is disabled while the game runs and re-enabled afterwards."/>
+                <TextBlock Name="StretchStatusText" Style="{StaticResource Body}" Text="reading display..."/>
+                <Grid Margin="8,4,8,0">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/><ColumnDefinition Width="*"/>
+                  </Grid.ColumnDefinitions>
+                  <ListBox Name="StretchPresetList" Grid.Column="0" Height="130"/>
+                  <ListBox Name="StretchGameList" Grid.Column="1" Height="130" Margin="8,0,0,0"/>
+                </Grid>
+                <DockPanel Margin="8,6,8,0">
+                  <TextBlock Text="custom: " VerticalAlignment="Center" Foreground="#858585"/>
+                  <TextBox Name="StretchCustom" Text="" ToolTip="Any width x height, for example 1560x1080. When filled in it replaces the preset."/>
+                </DockPanel>
+                <StackPanel Orientation="Horizontal" Margin="8,10,0,0">
+                  <Button Name="BtnStretchStart" Content="Switch and launch" Style="{StaticResource AccentButton}" ToolTip="Records the current mode and scaling, makes sure the mode exists, sets scaling to Stretched, writes the game's resolution, switches the desktop and launches the game. When the game closes the desktop is restored. If the tool is closed or crashes before that, the next start restores it."/>
+                  <Button Name="BtnStretchRestore" Content="Restore desktop" Style="{StaticResource DangerButton}" ToolTip="Puts the desktop mode, the scaling and the monitor device back from the recorded state, at any time."/>
+                  <Button Name="BtnStretchAddMode" Content="Create custom mode only" ToolTip="Only creates the selected mode through the NVIDIA driver API (the same thing NVIDIA Control Panel's Customize dialog does), without switching to it."/>
+                  <Button Name="BtnStretchRefresh" Content="Refresh"/>
+                </StackPanel>
+              </StackPanel>
+            </ScrollViewer>
+          </TabItem>
+
+          <TabItem Header="GAME READY">
+            <DockPanel>
+              <Border DockPanel.Dock="Top" Background="#252526" BorderBrush="#3E3E42" BorderThickness="0,0,0,1" Padding="10,8">
+                <DockPanel>
+                  <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                    <Button Name="BtnGameReadyClose" Content="Close selected" Style="{StaticResource DangerButton}" Margin="0" ToolTip="Asks each ticked window to close, waits three seconds, then ends whatever is still running. Frees CPU time and memory for the game. Nothing here can be undone; unsaved work in those apps is lost, and you start them again yourself."/>
+                  </StackPanel>
+                  <StackPanel Orientation="Horizontal">
+                    <Button Name="BtnGameReadyRefresh" Content="Refresh"/>
+                    <Button Name="BtnGameReadyClear" Content="Clear"/>
+                  </StackPanel>
+                </DockPanel>
+              </Border>
+              <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="8,4,8,16">
+                  <TextBlock Text="Game you are about to play" Style="{StaticResource SectionHeader}" ToolTip="The game and its launcher are left alone. Windows itself, the security stack, audio, the GPU display containers and every anti-cheat are never listed at all: that list is code, not config."/>
+                  <ListBox Name="GameReadyGameList" Margin="8,4,8,4" Height="72"/>
+                  <TextBlock Text="Running in your session" Style="{StaticResource SectionHeader}" ToolTip="Voice chat, recording and peripheral software are listed but not ticked; everything else is ticked. Hover an entry for what it is."/>
+                  <StackPanel Name="GameReadyPanel"/>
+                </StackPanel>
+              </ScrollViewer>
+            </DockPanel>
           </TabItem>
 
           <TabItem Header="NETWORK">

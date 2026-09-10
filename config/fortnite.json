@@ -126,6 +126,58 @@
           "bEnableDLSSFrameGeneration": "False"
         }
       }
+    },
+    "Potato": {
+      "Content": "Potato (experimental: DirectX 12 at 50 percent render resolution, everything off)",
+      "Description": "For fun, and for GPUs whose DirectX 12 path outruns their Performance Mode path: the full DX12 renderer with 3D resolution at 50 percent (the game's own TSR upscales it back), every quality group at its lowest, Nanite, Lumen, ray tracing and anti-aliasing off, Reflex On+Boost, VSync off. It looks like a potato. Measure it against Max FPS yourself; on most cards Performance Mode is still faster.",
+      "Settings": {
+        "/Script/FortniteGame.FortGameUserSettings": {
+          "FullscreenMode": "0",
+          "LastConfirmedFullscreenMode": "0",
+          "PreferredFullscreenMode": "0",
+          "FrameRateLimit": "0.000000",
+          "bUseVSync": "False",
+          "bUseDynamicResolution": "False",
+          "bMotionBlur": "False",
+          "LatencyTweak2": "2",
+          "bLatencyTweak1": "False",
+          "bLatencyFlash": "False",
+          "FortAntiAliasingMethod": "Disabled",
+          "DLSSQuality": "0",
+          "XeSSQuality": "0",
+          "bEnableDLSSFrameGeneration": "False",
+          "bUseNanite": "False",
+          "DesiredGlobalIlluminationQuality": "0",
+          "DesiredReflectionQuality": "0",
+          "PreNaniteGlobalIlluminationQuality": "0",
+          "PreNaniteReflectionQuality": "0",
+          "bRayTracing": "False",
+          "bUseGPUCrashDebugging": "False",
+          "CosmeticStreamingEnabled": "CodeSet_Disabled",
+          "bUseHDRDisplayOutput": "False"
+        },
+        "ScalabilityGroups": {
+          "sg.ResolutionQuality": "50",
+          "sg.ViewDistanceQuality": "0",
+          "sg.AntiAliasingQuality": "0",
+          "sg.ShadowQuality": "0",
+          "sg.GlobalIlluminationQuality": "0",
+          "sg.ReflectionQuality": "0",
+          "sg.PostProcessQuality": "0",
+          "sg.TextureQuality": "0",
+          "sg.EffectsQuality": "0",
+          "sg.FoliageQuality": "0",
+          "sg.ShadingQuality": "0",
+          "sg.LandscapeQuality": "0"
+        },
+        "D3DRHIPreference": {
+          "PreferredRHI": "dx12",
+          "PreferredFeatureLevel": "sm6"
+        },
+        "RayTracing": {
+          "r.RayTracing.EnableInGame": "False"
+        }
+      }
     }
   },
   "HiddenKeys": {

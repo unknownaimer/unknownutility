@@ -1,0 +1,71 @@
+{
+  "GameProcess": "VALORANT-Win64-Shipping",
+  "BlockingProcesses": ["VALORANT-Win64-Shipping", "VALORANT"],
+  "ClientProcesses": ["RiotClientServices", "RiotClientUx", "RiotClientUxRender", "RiotClientCrashHandler", "Riot Client"],
+  "LaunchArguments": "--launch-product=valorant --launch-patchline=live",
+  "GameSection": "/Script/ShooterGame.ShooterGameUserSettings",
+  "RiotSection": "Settings",
+  "Profiles": {
+    "MaxFPS": {
+      "Content": "Max FPS (everything low, Reflex On+Boost, uncapped)",
+      "Description": "Every graphics quality at its lowest, bloom, distortion and vignette off, anti-aliasing off, 1x anisotropic, VSync off, no frame cap, NVIDIA Reflex On+Boost. Fill aspect ratio so a stretched resolution is not letterboxed. Every key is one the in-game Video menu writes.",
+      "Game": {
+        "bUseVSync": "False",
+        "bUseDynamicResolution": "False",
+        "FrameRateLimit": "0.000000",
+        "bShouldLetterbox": "False",
+        "bLastConfirmedShouldLetterbox": "False",
+        "LastConfirmedFullscreenMode": "0",
+        "PreferredFullscreenMode": "0"
+      },
+      "Riot": {
+        "EAresIntSettingName::TextureQuality": "0",
+        "EAresIntSettingName::MaterialQuality": "0",
+        "EAresIntSettingName::DetailQuality": "0",
+        "EAresIntSettingName::UIQuality": "0",
+        "EAresIntSettingName::BloomQuality": "0",
+        "EAresIntSettingName::AnisotropicFiltering": "1",
+        "EAresBoolSettingName::DisableDistortion": "True",
+        "EAresIntSettingName::NvidiaReflexLowLatencySetting": "2",
+        "EAresBoolSettingName::LimitFramerateAlways": "False"
+      }
+    },
+    "Balanced": {
+      "Content": "Balanced (low quality, capped at 240, Reflex On)",
+      "Description": "Low quality groups with a 240 FPS cap so the GPU and CPU are not pinned in the menus, Reflex On without Boost. VSync off. Fill aspect ratio.",
+      "Game": {
+        "bUseVSync": "False",
+        "bUseDynamicResolution": "False",
+        "FrameRateLimit": "240.000000",
+        "bShouldLetterbox": "False",
+        "bLastConfirmedShouldLetterbox": "False"
+      },
+      "Riot": {
+        "EAresIntSettingName::TextureQuality": "0",
+        "EAresIntSettingName::MaterialQuality": "0",
+        "EAresIntSettingName::DetailQuality": "0",
+        "EAresIntSettingName::UIQuality": "0",
+        "EAresIntSettingName::BloomQuality": "0",
+        "EAresIntSettingName::AnisotropicFiltering": "1",
+        "EAresBoolSettingName::DisableDistortion": "True",
+        "EAresIntSettingName::NvidiaReflexLowLatencySetting": "1",
+        "EAresBoolSettingName::LimitFramerateAlways": "True",
+        "EAresFloatSettingName::MaxFramerateAlways": "240"
+      }
+    },
+    "LatencyOnly": {
+      "Content": "Keep my visuals (only Reflex, VSync and cap)",
+      "Description": "Touches nothing about quality. Reflex On+Boost, VSync off, no frame cap, Fill aspect ratio.",
+      "Game": {
+        "bUseVSync": "False",
+        "FrameRateLimit": "0.000000",
+        "bShouldLetterbox": "False",
+        "bLastConfirmedShouldLetterbox": "False"
+      },
+      "Riot": {
+        "EAresIntSettingName::NvidiaReflexLowLatencySetting": "2",
+        "EAresBoolSettingName::LimitFramerateAlways": "False"
+      }
+    }
+  }
+}

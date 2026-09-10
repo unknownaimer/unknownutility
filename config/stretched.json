@@ -1,0 +1,15 @@
+{
+  "Presets": [
+    { "Width": 1440, "Height": 1080, "Label": "1440x1080  (4:3, the classic stretched)", "Custom": true },
+    { "Width": 1600, "Height": 1080, "Label": "1600x1080  (most common in FNCS lobbies)", "Custom": true },
+    { "Width": 1728, "Height": 1080, "Label": "1728x1080  (16:10, mild stretch)", "Custom": true },
+    { "Width": 1680, "Height": 1080, "Label": "1680x1080  (mild stretch)", "Custom": true },
+    { "Width": 1280, "Height": 960,  "Label": "1280x960   (4:3, exists on every monitor, no custom mode)", "Custom": false },
+    { "Width": 1024, "Height": 768,  "Label": "1024x768   (4:3, exists on every monitor, no custom mode)", "Custom": false }
+  ],
+  "Games": {
+    "None":     { "Content": "Desktop only (I will start the game myself)" },
+    "Fortnite": { "Content": "Fortnite: write the resolution into GameUserSettings.ini and launch through Epic" },
+    "Valorant": { "Content": "VALORANT: write the resolution, disable the monitor device so the game cannot lock to 16:9, launch through Riot" }
+  }
+}

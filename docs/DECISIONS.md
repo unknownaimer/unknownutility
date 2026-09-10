@@ -448,3 +448,136 @@ now says the tweak applies to a Fortnite launched with `-d3d11`.
 - Epic, "Has the DirectX 11 option been permanently removed from Rendering Mode in Fortnite?": <https://www.epicgames.com/help/c-202300000001636/c-202300000001721/has-the-directx-11-option-been-permanently-removed-from-rendering-mode-in-fortnite-a202300000083887>
 - Epic, "How do I force Fortnite to use DirectX 11?": <https://www.epicgames.com/help/en-US/c-Category_Fortnite/c-Fortnite_TechnicalSupport/how-do-i-force-fortnite-to-use-directx-11-a000085695>
 - Epic, "What performance mode should I use, DirectX11 or DirectX12?": <https://www.epicgames.com/help/en-US/c-202300000001636/c-202300000001690/a202300000011726>
+
+## 14. Game detection, VALORANT, true stretched, Game Ready, benchmark, status (2026-09-10)
+
+A batch of features and one bug. Each was written against a primary source: the live game configs
+and binaries on the dev machine, the NVIDIA header, the Windows CCD API docs, or Riot's and Epic's
+own words. Nothing here injects into a game, loads a driver, or touches anti-cheat.
+
+### The game detection bug (windowed fullscreen)
+
+The old detector keyed off the foreground window: a game counted as detected only when its window was
+fullscreen or borderless *and* owned the foreground. Alt-tab away and the GAME card said "no game";
+a borderless window Windows classed as merely maximised never counted at all. Fixed by detecting the
+**process** instead (`Get-UTRunningGame`): a name match against `config/games.json` - expanded to 47
+current titles with their real executables (`bf6`, `PioneerGame` for ARC Raiders, `project8` for
+Deadlock, `Discovery` for The Finals, `DeltaForceClient-Win64-Shipping`) - then a fallback matching
+any windowed process whose image sits under a known game library folder (Steam, Epic, Riot and the
+rest), titled by the folder it sits in. The window state is still read, but only to label *how* the
+game is showing (fullscreen / borderless / windowed / background); it no longer decides *whether*
+there is a game. A name match beats a path match, and the largest working set wins among several.
+(H for the executable list, M for the library-path fallback.)
+
+### VALORANT tab
+
+Both config files were read off this machine rather than taken from a guide.
+`%LOCALAPPDATA%\VALORANT\Saved\Config\<player>\WindowsClient\GameUserSettings.ini` holds the Unreal
+settings (`ResolutionSizeX/Y`, `bUseVSync`, `FrameRateLimit`, `bShouldLetterbox`, fullscreen mode);
+`...\Windows\RiotUserSettings.ini` holds Riot's own keys (`EAresIntSettingName::TextureQuality`,
+`MaterialQuality`, `DetailQuality`, `UIQuality`, `BloomQuality`, `AnisotropicFiltering`,
+`DisableDistortion`, `NvidiaReflexLowLatencySetting`, `LimitFramerateAlways` /
+`MaxFramerateAlways`). Every value shipped is one the in-game Video menu itself writes, harvested
+from the real profiles on disk. Both are per-player files the game rewrites on exit, so a write
+refuses while `VALORANT-Win64-Shipping` runs; the Riot client sitting in the tray does not touch
+them, so it is not a blocker. Riot's support material states that editing these files is allowed and
+that only a running game overwrites them; Vanguard's concern is injected code, not user settings.
+Each file is backed up before the first write and restorable from the tab. (H for the shapes and
+keys, read off disk; M for "allowed", which rests on Riot's support wording.)
+
+### True stretched (STRETCHED tab)
+
+The goal is a real mode change plus GPU fill, not a borderless window with bars. Three mechanisms,
+each verified live on this machine (GTX 1650, driver 32.0.15.9159, 1920x1080@180):
+
+* **Mode switch:** `ChangeDisplaySettingsExW` with `CDS_UPDATEREGISTRY`. Verified by switching the
+  desktop to 1280x960 and back, return code 0 both ways.
+* **Custom mode creation:** the NVIDIA driver's own API through `nvapi64.dll`, resolved by its
+  documented `nvapi_QueryInterface` export. `NvAPI_DISP_GetTiming` (timing type
+  `NV_TIMING_OVERRIDE_AUTO`, falling back to `CVT_RB`) builds the timing, then
+  `NvAPI_DISP_TryCustomDisplay` + `NvAPI_DISP_SaveCustomDisplay`, with
+  `NvAPI_DISP_RevertCustomDisplayTrial` ending the trial. The structs (`NV_TIMING_INPUT` 32 bytes,
+  `NV_TIMING` 96, `NV_CUSTOM_DISPLAY` 144) are reproduced field for field from `nvapi.h` in
+  NVIDIA's own repository, and a startup test asserts those three sizes so a marshalling mistake
+  fails loudly instead of corrupting a driver call. Verified end to end: created 1600x1080, which
+  Windows did not offer; confirmed Windows then listed it; deleted it; confirmed it was gone - with
+  the desktop mode untouched throughout. With no NVIDIA driver present the tool refuses and points
+  at the AMD or Intel control panel rather than guessing. (H.)
+* **GPU scaling:** `SetDisplayConfig` over the active paths with the primary target's scaling set to
+  `DISPLAYCONFIG_SCALING_STRETCHED` (3) and `SDC_SAVE_TO_DATABASE` so it persists for that mode.
+  **Finding worth recording:** reading the scaling back immediately after `SDC_APPLY` is unreliable -
+  it returns identity even while the panel is stretching - but the saved value *is* honoured on the
+  next switch to that mode, shown by switching away and back and reading 3. So the tool sets it
+  best-effort and deliberately does **not** raise a warning from an immediate re-read, which would
+  cry wolf on a working setup. Whether the panel finally fills or bars is the GPU's call; on some
+  drivers it is a one-time control-panel setting, and the tab says so. (H for the API; M for "it
+  fills on every monitor", which it will not.)
+* **VALORANT's aspect lock:** the game reads the monitor's native aspect ratio from its EDID and
+  locks fullscreen to it, so a stretched mode alone is still letterboxed inside the game. The fix is
+  to hide the monitor from the game while it starts; this tool uses Microsoft-signed
+  `pnputil /disable-device` on the monitor device for the duration and `/enable-device` afterwards,
+  recorded in the state file first so a crash cannot strand the device disabled. No third-party
+  binary is shipped or downloaded, unlike the popular tools, which bundle their own resolution
+  switcher. (H for the mechanism; the aspect lock is documented by every stretched-res guide.)
+
+The session writes a state file before the first change and deletes it after the last restore, and
+`scripts/start.ps1` repairs a leftover state at the next launch, so a crash or power loss cannot
+leave someone at 1440x1080 with a disabled monitor.
+
+### Game Ready (process killer)
+
+`Get-UTNeverKill` is a **code-side** list, checked when the candidates are built and again before
+anything is signalled, that `config/gameready.json` cannot override - the same second lock the
+debloat blocklist uses. It covers the kernel and session-0 set (`csrss`, `wininit`, `services`,
+`lsass`, `smss`, `winlogon`), the shell and input stack, audio (`audiodg`), the security stack
+(Defender, `SecurityHealthService`, `SgrmBroker`), the GPU vendors' display containers
+(`NVDisplay.Container`, `nvcontainer`, `atieclxx`) and **every anti-cheat** (`vgc`/`vgm`,
+`EasyAntiCheat*`, `BEService`/`BEDaisy`, `EAAntiCheatService`, FACEIT, PunkBuster). Only the
+interactive session is considered, so services and SYSTEM-owned processes never appear at all; the
+chosen game, its launcher family and the tool's own process tree are removed as well. Rows are
+grouped by executable name, so ten Chrome helpers are one tick and one line. Voice chat, recording
+and peripheral software are listed but left unticked, because those are the ones people actually
+want running. Closing is a polite `CloseMainWindow` first, then `Kill` after a grace period, and the
+confirmation says plainly that unsaved work is lost and nothing here is undoable. Verified live: 81
+candidate apps on the dev machine, none of them protected, the tool itself excluded. (H.)
+
+### Benchmark and recommendations (SYSTEM tab)
+
+A synthetic in-process benchmark - an xorshift plus float loop single- and multi-threaded,
+`Buffer.BlockCopy` for memory bandwidth, and a `FILE_FLAG_NO_BUFFERING` sequential disk pass - scored
+against a fixed reference so it reads as a rough tier rather than an absolute anyone should quote.
+Two corrections came out of running it: the disk temp file now lives under `%LOCALAPPDATA%` rather
+than the drive root, which is not writable without elevation on every box, and a disk failure is
+non-fatal instead of aborting the run. `Get-UTRecommendations` maps hardware facts plus the benchmark
+onto catalogue ids with a reason string for each, and it recommends **only** from the existing,
+already-researched catalogue - it invents no new tweaks. Tests assert that no risky tweak is ever
+auto-ticked and that every recommendation carries a reason. (M: the tiering is a heuristic and is
+labelled as one.)
+
+### Fortnite live status, and Potato mode
+
+Live status is Epic's own public status API (`status.epicgames.com/api/v2/summary.json`): the
+Fortnite components, open incidents with Epic's latest update, and scheduled maintenance, plus a link
+to Epic's known-issues page. That GET is the only request the tab makes. "Potato mode" is a fourth
+Fortnite profile - the DX12 renderer at 50% 3D resolution, with the engine's own TSR upscaling it
+back, and everything else at its lowest. It is labelled experimental and tells the reader to measure
+it against Max FPS themselves, because on most cards Performance Mode is still faster. Every key is
+one the Video menu writes; no cvar edits, the same rule as the rest of that tab.
+
+### Settings export and import
+
+A small JSON file of ids and names only - the ticked tweaks, the Fortnite and VALORANT profiles and
+the launch arguments - so a setup can be shared. No machine facts and no snapshots go into it.
+Import ticks boxes and picks profiles; nothing is applied until Apply is pressed, and ids the running
+build does not have are named and skipped rather than silently dropped.
+
+### Sources
+
+- Live on the dev machine: `RiotClientInstalls.json`, VALORANT `GameUserSettings.ini` and
+  `RiotUserSettings.ini`, `FortniteGame.log`, the display mode list, the CCD scaling round trip, and
+  `nvapi64.dll` (driver 32.0.15.9159).
+- NVIDIA `nvapi.h`, for the struct layouts and function ids: <https://github.com/NVIDIA/nvapi>
+- Microsoft, DISPLAYCONFIG_SCALING: <https://learn.microsoft.com/en-us/windows/win32/api/wingdi/ne-wingdi-displayconfig_scaling>
+- Microsoft, SetDisplayConfig and the CCD API: <https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setdisplayconfig>
+- Windows critical processes that must never be ended, cross-checked across Microsoft guidance and community references.
+- Riot Games support on editing VALORANT's configuration files; Epic's status API and Fortnite live-issues page.

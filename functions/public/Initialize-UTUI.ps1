@@ -351,7 +351,11 @@ function Initialize-UTUI {
     [void](New-UTGraphCard -Key disk -Title 'DISK ACTIVE' -Color '#DCDCAA' -Parent $sync.GraphPanel)
     [void](New-UTGraphCard -Key net  -Title 'NETWORK'     -Color '#C586C0' -AutoScale -MinScale 64 -Parent $sync.GraphPanel)
     Initialize-UTTweaksTab
+    Initialize-UTSystemTab
     Initialize-UTFortniteTab
+    Initialize-UTValorantTab
+    Initialize-UTStretchedTab
+    Initialize-UTGameReadyTab
     Initialize-UTNetworkTab
     Initialize-UTAppsTab
     Initialize-UTStartupTab

@@ -22,10 +22,10 @@ $sync.backupDir = Join-Path ([System.IO.Path]::GetTempPath()) ('ut-test-' + [gui
 $sync.configs = @{}
 $sync.form = $null
 $sync.status = ''
-foreach ($f in 'Write-UTLog', 'Set-UTRegistry', 'Set-UTIniValue', 'Save-UTBackup', 'Set-UTLaunchArgs', 'Invoke-UTTweaks', 'Get-UTStartupItems', 'Remove-UTAppxPackages', 'Measure-UTRegionPing', 'Test-UTDnsLatency', 'Test-UTBetaGate') {
+foreach ($f in 'Write-UTLog', 'Set-UTRegistry', 'Set-UTIniValue', 'Save-UTBackup', 'Set-UTLaunchArgs', 'Invoke-UTTweaks', 'Get-UTStartupItems', 'Remove-UTAppxPackages', 'Measure-UTRegionPing', 'Test-UTDnsLatency', 'Test-UTBetaGate', 'Get-UTGameReady', 'Get-UTRunningGame', 'Invoke-UTBenchmark', 'Get-UTValorant') {
     . (Join-Path $Root "functions/private/$f.ps1")
 }
-foreach ($j in 'gameservers', 'dns', 'tweaks', 'fortnite', 'debloat') {
+foreach ($j in 'gameservers', 'dns', 'tweaks', 'fortnite', 'debloat', 'games', 'gameready', 'valorant', 'stretched') {
     $sync.configs[$j] = Get-Content -Raw (Join-Path $Root "config/$j.json") | ConvertFrom-Json
 }
 
@@ -131,6 +131,62 @@ $leak = @()
 $json = Get-Content -Raw (Join-Path $Root 'config/fortnite.json')
 foreach ($f in $forbidden) { if ($json.Contains($f) -and $f -ne 'r.Lumen.') { $leak += $f } }
 Assert ($leak.Count -eq 0) 'no engine cvar overrides in fortnite.json'
+
+Write-Host "valorant profiles"
+$va = $sync.configs.valorant
+Assert (@($va.Profiles.PSObject.Properties).Count -ge 3) "valorant.json has $(@($va.Profiles.PSObject.Properties).Count) profiles"
+$vaBad = @()
+foreach ($p in $va.Profiles.PSObject.Properties) {
+    if (-not $p.Value.Content -or -not $p.Value.Description) { $vaBad += "$($p.Name) text" }
+    foreach ($k in @($p.Value.Riot.PSObject.Properties.Name)) { if ($k -notmatch '^EAres(Int|Bool|Float|String)SettingName::') { $vaBad += "$($p.Name) riot key $k" } }
+    foreach ($k in @($p.Value.Game.PSObject.Properties.Name)) { if ($k -match '^EAres') { $vaBad += "$($p.Name) riot key in Game section: $k" } }
+}
+Assert ($vaBad.Count -eq 0) ("every valorant profile is well-formed" + $(if ($vaBad) { ': ' + ($vaBad -join ', ') } else { '' }))
+Assert ($va.GameSection -eq '/Script/ShooterGame.ShooterGameUserSettings') 'valorant game section is the ShooterGame one'
+
+Write-Host "game detection"
+$g = $sync.configs.games
+Assert (@($g.KnownGames.PSObject.Properties).Count -ge 40) "$(@($g.KnownGames.PSObject.Properties).Count) known game executables"
+Assert (@($g.KnownGames.PSObject.Properties.Name) -contains 'VALORANT-Win64-Shipping' -and @($g.KnownGames.PSObject.Properties.Name) -contains 'FortniteClient-Win64-Shipping') 'Fortnite and VALORANT are known by their shipping executables'
+$overlap = @($g.KnownGames.PSObject.Properties.Name | Where-Object { @($g.LauncherProcesses) -contains $_ })
+Assert ($overlap.Count -eq 0) ("no game executable is also listed as a launcher" + $(if ($overlap) { ': ' + ($overlap -join ', ') } else { '' }))
+$running = Get-UTRunningGame
+Assert ($null -eq $running -or ($running.Pid -gt 0 -and $running.Title)) ("Get-UTRunningGame returns nothing or a titled process" + $(if ($running) { " (found $($running.Title))" } else { '' }))
+
+Write-Host "game ready"
+$never = @(Get-UTNeverKill)
+foreach ($n in 'csrss', 'wininit', 'lsass', 'services', 'dwm', 'explorer', 'audiodg', 'vgc', 'EasyAntiCheat_EOS', 'BEService', 'NVDisplay.Container', 'powershell') {
+    Assert ($never -contains $n) "$n is never offered for closing"
+}
+$keepNever = @($sync.configs.gameready.Keep.PSObject.Properties.Name + $sync.configs.gameready.Background.PSObject.Properties.Name | Where-Object { $never -contains $_ })
+Assert ($keepNever.Count -eq 0) ("gameready.json never lists a protected process" + $(if ($keepNever) { ': ' + ($keepNever -join ', ') } else { '' }))
+$cands = @(Get-UTGameReadyCandidates)
+$leaked = @($cands | Where-Object { $never -contains $_.Name })
+Assert ($leaked.Count -eq 0) "no protected process among $($cands.Count) candidate apps on this PC"
+$self = [System.Diagnostics.Process]::GetCurrentProcess()
+Assert (@($cands | Where-Object { $_.Pids -contains $self.Id }).Count -eq 0) 'the tool itself is not a candidate'
+Assert (@($cands | Where-Object { $_.Count -ne $_.Pids.Count -or $_.Count -lt 1 }).Count -eq 0) 'every candidate app carries its process ids'
+Assert (@($cands | Group-Object Name | Where-Object { $_.Count -gt 1 }).Count -eq 0) 'one row per app name, not per process'
+
+Write-Host "stretched presets"
+$sp = $sync.configs.stretched
+$badPreset = @($sp.Presets | Where-Object { $_.Width -le 0 -or $_.Height -le 0 -or $_.Width -gt 7680 -or ($_.Width / $_.Height) -ge 1.7 })
+Assert ($badPreset.Count -eq 0) "every preset is a real stretched shape (narrower than 16:9)"
+Assert (@($sp.Games.PSObject.Properties.Name) -contains 'Fortnite' -and @($sp.Games.PSObject.Properties.Name) -contains 'Valorant' -and @($sp.Games.PSObject.Properties.Name) -contains 'None') 'the three stretched targets exist'
+
+Write-Host "recommendations"
+$sync.sysinfo = [pscustomobject]@{ VBSStatus = 2; HVCIRunning = $true; IsLaptop = $true; DiskType = 'HDD'; GPUVendor = 'NVIDIA'; GPU = 'NVIDIA GeForce RTX 3060'; Is11 = $true; Build = 22631; CPU = 'AMD Ryzen 7 7800X3D'; RamGB = 16 }
+$sync.benchmark = $null
+$rec = @(Get-UTRecommendations)
+Assert ($rec.Count -ge 8) "$($rec.Count) recommendations for a laptop with VBS on, HDD and an RTX card"
+Assert (@($rec | Where-Object { $_.Tier -eq 'risky' -and $_.Tick }).Count -eq 0) 'no risky tweak is ever ticked automatically'
+Assert (@($rec | Where-Object { $_.Id -eq 'UTVBSOff' }).Count -eq 1) 'VBS off is named when VBS is running'
+Assert (@($rec | Where-Object { $_.Id -eq 'UTSearchIndexOff' -and $_.Tick }).Count -eq 1) 'search indexing off is ticked on a hard disk'
+Assert (@($rec | Where-Object { $_.Id -eq 'UTHibernateOff' }).Count -eq 0) 'hibernation off is not offered on a laptop'
+Assert (@($rec | Where-Object { $_.Why }).Count -eq $rec.Count) 'every recommendation carries a reason'
+Assert ((Get-UTPerformanceTier -CpuSingle 95 -CpuMulti 90 -Gpu 'NVIDIA GeForce RTX 4070') -eq 'high-end') 'tier: fast CPU + RTX 40 = high-end'
+Assert ((Get-UTPerformanceTier -CpuSingle 95 -CpuMulti 90 -Gpu 'Intel(R) UHD Graphics 630') -eq 'low') 'tier: an iGPU caps the tier at low'
+$sync.sysinfo = $null
 
 Write-Host "table formatting"
 # 'Internet (Cloudflare)' is 21 characters and is the real label of the baseline row, so it is the

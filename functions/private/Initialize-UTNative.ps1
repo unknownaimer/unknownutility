@@ -181,6 +181,197 @@ namespace UT.NativeV1 {
     [DllImport("dwmapi.dll", PreserveSig = true)] public static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int attrValue, int attrSize);
     [DllImport("Shcore.dll")] public static extern int SetProcessDpiAwareness(int value);
   }
+
+  public static class Display {
+    public class Mode { public int Width; public int Height; public int Hz; }
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    struct DEVMODE {
+      [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)] public string dmDeviceName;
+      public short dmSpecVersion, dmDriverVersion, dmSize, dmDriverExtra; public int dmFields;
+      public int dmPositionX, dmPositionY, dmDisplayOrientation, dmDisplayFixedOutput;
+      public short dmColor, dmDuplex, dmYResolution, dmTTOption, dmCollate;
+      [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)] public string dmFormName;
+      public short dmLogPixels; public int dmBitsPerPel, dmPelsWidth, dmPelsHeight, dmDisplayFlags, dmDisplayFrequency;
+      public int dmICMMethod, dmICMIntent, dmMediaType, dmDitherType, dmReserved1, dmReserved2, dmPanningWidth, dmPanningHeight;
+    }
+    [StructLayout(LayoutKind.Sequential)] public struct LUID { public uint LowPart; public int HighPart; }
+    [StructLayout(LayoutKind.Sequential)] public struct RATIONAL { public uint Numerator, Denominator; }
+    [StructLayout(LayoutKind.Sequential)] public struct PATH_SOURCE_INFO { public LUID adapterId; public uint id, modeInfoIdx, statusFlags; }
+    [StructLayout(LayoutKind.Sequential)] public struct PATH_TARGET_INFO { public LUID adapterId; public uint id, modeInfoIdx, outputTechnology, rotation, scaling; public RATIONAL refreshRate; public uint scanLineOrdering; public int targetAvailable; public uint statusFlags; }
+    [StructLayout(LayoutKind.Sequential)] public struct PATH_INFO { public PATH_SOURCE_INFO sourceInfo; public PATH_TARGET_INFO targetInfo; public uint flags; }
+    [StructLayout(LayoutKind.Sequential)] public struct REGION2D { public uint cx, cy; }
+    [StructLayout(LayoutKind.Sequential)] public struct VIDEO_SIGNAL_INFO { public ulong pixelRate; public RATIONAL hSyncFreq, vSyncFreq; public REGION2D activeSize, totalSize; public uint videoStandard, scanLineOrdering; }
+    [StructLayout(LayoutKind.Sequential)] public struct SOURCE_MODE { public uint width, height, pixelFormat; public int x, y; }
+    [StructLayout(LayoutKind.Explicit, Size = 48)] public struct MODE_UNION { [FieldOffset(0)] public VIDEO_SIGNAL_INFO targetVideoSignalInfo; [FieldOffset(0)] public SOURCE_MODE sourceMode; }
+    [StructLayout(LayoutKind.Sequential)] public struct MODE_INFO { public uint infoType, id; public LUID adapterId; public MODE_UNION u; }
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern bool EnumDisplaySettingsW(string dev, int mode, ref DEVMODE dm);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int ChangeDisplaySettingsExW(string dev, ref DEVMODE dm, IntPtr hwnd, uint flags, IntPtr lparam);
+    [DllImport("user32.dll")] static extern int GetDisplayConfigBufferSizes(uint flags, out uint numPaths, out uint numModes);
+    [DllImport("user32.dll")] static extern int QueryDisplayConfig(uint flags, ref uint numPaths, [Out] PATH_INFO[] paths, ref uint numModes, [Out] MODE_INFO[] modes, IntPtr topology);
+    [DllImport("user32.dll")] static extern int SetDisplayConfig(uint numPaths, PATH_INFO[] paths, uint numModes, MODE_INFO[] modes, uint flags);
+    const int DM_PELSWIDTH = 0x80000, DM_PELSHEIGHT = 0x100000, DM_DISPLAYFREQUENCY = 0x400000;
+    const uint CDS_UPDATEREGISTRY = 1, QDC_ONLY_ACTIVE_PATHS = 2;
+    const uint SDC_USE_SUPPLIED_DISPLAY_CONFIG = 0x20, SDC_APPLY = 0x80, SDC_SAVE_TO_DATABASE = 0x200, SDC_ALLOW_CHANGES = 0x400;
+    static DEVMODE Blank() { DEVMODE d = new DEVMODE(); d.dmSize = (short)Marshal.SizeOf(typeof(DEVMODE)); return d; }
+    public static Mode GetCurrent() {
+      DEVMODE d = Blank(); Mode m = new Mode();
+      if (EnumDisplaySettingsW(null, -1, ref d)) { m.Width = d.dmPelsWidth; m.Height = d.dmPelsHeight; m.Hz = d.dmDisplayFrequency; }
+      return m;
+    }
+    public static List<Mode> EnumModes() {
+      List<Mode> list = new List<Mode>(); HashSet<string> seen = new HashSet<string>();
+      DEVMODE d = Blank();
+      for (int i = 0; EnumDisplaySettingsW(null, i, ref d); i++) {
+        if (d.dmBitsPerPel != 32) continue;
+        string k = d.dmPelsWidth + "x" + d.dmPelsHeight + "@" + d.dmDisplayFrequency;
+        if (!seen.Add(k)) continue;
+        Mode m = new Mode(); m.Width = d.dmPelsWidth; m.Height = d.dmPelsHeight; m.Hz = d.dmDisplayFrequency; list.Add(m);
+      }
+      return list;
+    }
+    public static int SetMode(int width, int height, int hz, bool persist) {
+      DEVMODE d = Blank();
+      d.dmPelsWidth = width; d.dmPelsHeight = height; d.dmFields = DM_PELSWIDTH | DM_PELSHEIGHT;
+      if (hz > 0) { d.dmDisplayFrequency = hz; d.dmFields |= DM_DISPLAYFREQUENCY; }
+      return ChangeDisplaySettingsExW(null, ref d, IntPtr.Zero, persist ? CDS_UPDATEREGISTRY : 0, IntPtr.Zero);
+    }
+    static int Query(out PATH_INFO[] paths, out MODE_INFO[] modes, out uint np, out uint nm) {
+      paths = null; modes = null; np = 0; nm = 0;
+      int rc = GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, out np, out nm);
+      if (rc != 0) return rc;
+      paths = new PATH_INFO[np]; modes = new MODE_INFO[nm];
+      return QueryDisplayConfig(QDC_ONLY_ACTIVE_PATHS, ref np, paths, ref nm, modes, IntPtr.Zero);
+    }
+    static int Primary(PATH_INFO[] paths, MODE_INFO[] modes, uint np) {
+      for (int i = 0; i < np; i++) {
+        uint idx = paths[i].sourceInfo.modeInfoIdx;
+        if (idx < modes.Length && modes[idx].u.sourceMode.x == 0 && modes[idx].u.sourceMode.y == 0) return i;
+      }
+      return np > 0 ? 0 : -1;
+    }
+    public static uint GetScaling() {
+      PATH_INFO[] paths; MODE_INFO[] modes; uint np, nm;
+      if (Query(out paths, out modes, out np, out nm) != 0) return 0;
+      int p = Primary(paths, modes, np);
+      return p < 0 ? 0 : paths[p].targetInfo.scaling;
+    }
+    public static int SetScaling(uint scaling) {
+      PATH_INFO[] paths; MODE_INFO[] modes; uint np, nm;
+      int rc = Query(out paths, out modes, out np, out nm);
+      if (rc != 0) return rc;
+      int p = Primary(paths, modes, np);
+      if (p < 0) return -1;
+      paths[p].targetInfo.scaling = scaling;
+      return SetDisplayConfig(np, paths, nm, modes, SDC_APPLY | SDC_USE_SUPPLIED_DISPLAY_CONFIG | SDC_SAVE_TO_DATABASE | SDC_ALLOW_CHANGES);
+    }
+    public static string StructSizes() { return Marshal.SizeOf(typeof(PATH_INFO)) + "," + Marshal.SizeOf(typeof(MODE_INFO)); }
+  }
+
+  public static class NvApi {
+    [StructLayout(LayoutKind.Sequential, Pack = 8)] public struct TIMINGEXT { public uint flag; public ushort rr; public uint rrx1k, aspect; public ushort rep; public uint status; [MarshalAs(UnmanagedType.ByValArray, SizeConst = 40)] public byte[] name; }
+    [StructLayout(LayoutKind.Sequential, Pack = 8)] public struct TIMING { public ushort HVisible, HBorder, HFrontPorch, HSyncWidth, HTotal; public byte HSyncPol; public ushort VVisible, VBorder, VFrontPorch, VSyncWidth, VTotal; public byte VSyncPol; public ushort interlaced; public uint pclk; public TIMINGEXT etc; }
+    [StructLayout(LayoutKind.Sequential, Pack = 8)] public struct TIMING_FLAG { public uint interlacedAndReserved, formatUnion, scaling; }
+    [StructLayout(LayoutKind.Sequential, Pack = 8)] public struct TIMING_INPUT { public uint version, width, height; public float rr; public TIMING_FLAG flag; public uint type; }
+    [StructLayout(LayoutKind.Sequential, Pack = 8)] public struct VIEWPORTF { public float x, y, w, h; }
+    [StructLayout(LayoutKind.Sequential, Pack = 8)] public struct CUSTOM_DISPLAY { public uint version, width, height, depth, colorFormat; public VIEWPORTF srcPartition; public float xRatio, yRatio; public TIMING timing; public uint hwModeSetOnly; }
+    [DllImport("nvapi64.dll", EntryPoint = "nvapi_QueryInterface", CallingConvention = CallingConvention.Cdecl)] static extern IntPtr QueryInterface(uint id);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int InitializeFn();
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int PrimaryIdFn(out uint displayId);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int GetTimingFn(uint displayId, ref TIMING_INPUT input, out TIMING timing);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int TryFn(ref uint displayId, uint count, ref CUSTOM_DISPLAY cd);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int SaveFn(ref uint displayId, uint count, uint outputOnly, uint monitorOnly);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int RevertFn(ref uint displayId, uint count);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int EnumFn(uint displayId, uint index, ref CUSTOM_DISPLAY cd);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int DeleteFn(ref uint displayId, uint count, ref CUSTOM_DISPLAY cd);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int ErrorFn(int status, StringBuilder text);
+    const uint ID_Initialize = 0x0150E828, ID_PrimaryId = 0x1E9D8A31, ID_GetTiming = 0x175167E9, ID_Try = 0x1F7DB630, ID_Save = 0x49882876, ID_Revert = 0xCBBD40F0, ID_Enum = 0xA2072D59, ID_Delete = 0x552E5B9B, ID_Error = 0x6C2D048C;
+    const uint TIMING_INPUT_VER = 32 | (1 << 16), CUSTOM_DISPLAY_VER = 144 | (1 << 16);
+    const uint OVERRIDE_AUTO = 1, OVERRIDE_CVT_RB = 6;
+    static T Fn<T>(uint id) where T : class {
+      IntPtr p = QueryInterface(id);
+      if (p == IntPtr.Zero) throw new InvalidOperationException("NvAPI function 0x" + id.ToString("X") + " not exported by this driver");
+      return Marshal.GetDelegateForFunctionPointer(p, typeof(T)) as T;
+    }
+    static string Err(int status) {
+      try { StringBuilder sb = new StringBuilder(64); Fn<ErrorFn>(ID_Error)(status, sb); return "NvAPI error " + status + " (" + sb + ")"; }
+      catch { return "NvAPI error " + status; }
+    }
+    public static string StructSizes() { return Marshal.SizeOf(typeof(TIMING_INPUT)) + "," + Marshal.SizeOf(typeof(TIMING)) + "," + Marshal.SizeOf(typeof(CUSTOM_DISPLAY)); }
+    public static bool IsAvailable() {
+      try { return Fn<InitializeFn>(ID_Initialize)() == 0; } catch { return false; }
+    }
+    static uint PrimaryId() {
+      int rc = Fn<InitializeFn>(ID_Initialize)(); if (rc != 0) throw new InvalidOperationException(Err(rc));
+      uint id; rc = Fn<PrimaryIdFn>(ID_PrimaryId)(out id); if (rc != 0) throw new InvalidOperationException(Err(rc));
+      return id;
+    }
+    public static bool HasMode(int width, int height) {
+      uint id = PrimaryId(); EnumFn e = Fn<EnumFn>(ID_Enum);
+      for (uint i = 0; i < 64; i++) {
+        CUSTOM_DISPLAY cd = new CUSTOM_DISPLAY(); cd.version = CUSTOM_DISPLAY_VER;
+        if (e(id, i, ref cd) != 0) break;
+        if (cd.width == width && cd.height == height) return true;
+      }
+      return false;
+    }
+    public static string AddMode(int width, int height, int hz) {
+      if (Marshal.SizeOf(typeof(CUSTOM_DISPLAY)) != 144 || Marshal.SizeOf(typeof(TIMING_INPUT)) != 32) return "struct layout mismatch " + StructSizes();
+      uint id = PrimaryId();
+      TIMING_INPUT ti = new TIMING_INPUT(); ti.version = TIMING_INPUT_VER; ti.width = (uint)width; ti.height = (uint)height; ti.rr = hz; ti.type = OVERRIDE_AUTO;
+      TIMING timing;
+      int rc = Fn<GetTimingFn>(ID_GetTiming)(id, ref ti, out timing);
+      if (rc != 0) { ti.type = OVERRIDE_CVT_RB; rc = Fn<GetTimingFn>(ID_GetTiming)(id, ref ti, out timing); }
+      if (rc != 0) return "GetTiming: " + Err(rc);
+      CUSTOM_DISPLAY cd = new CUSTOM_DISPLAY();
+      cd.version = CUSTOM_DISPLAY_VER; cd.width = (uint)width; cd.height = (uint)height; cd.depth = 32; cd.colorFormat = 0;
+      cd.srcPartition.x = 0; cd.srcPartition.y = 0; cd.srcPartition.w = 1; cd.srcPartition.h = 1; cd.xRatio = 1; cd.yRatio = 1; cd.timing = timing; cd.hwModeSetOnly = 0;
+      rc = Fn<TryFn>(ID_Try)(ref id, 1, ref cd);
+      if (rc != 0) return "TryCustomDisplay: " + Err(rc);
+      rc = Fn<SaveFn>(ID_Save)(ref id, 1, 0, 0);
+      int rv = Fn<RevertFn>(ID_Revert)(ref id, 1);
+      if (rc != 0) return "SaveCustomDisplay: " + Err(rc);
+      return rv == 0 ? "ok" : "ok (revert of the trial mode reported " + Err(rv) + ")";
+    }
+    public static string DeleteMode(int width, int height) {
+      uint id = PrimaryId(); EnumFn e = Fn<EnumFn>(ID_Enum);
+      for (uint i = 0; i < 64; i++) {
+        CUSTOM_DISPLAY cd = new CUSTOM_DISPLAY(); cd.version = CUSTOM_DISPLAY_VER;
+        if (e(id, i, ref cd) != 0) break;
+        if (cd.width != width || cd.height != height) continue;
+        int rc = Fn<DeleteFn>(ID_Delete)(ref id, 1, ref cd);
+        return rc == 0 ? "ok" : "DeleteCustomDisplay: " + Err(rc);
+      }
+      return "not found";
+    }
+  }
+
+  public static class Bench {
+    static ulong sink;
+    static double Loop(int ms) {
+      ulong x = 88172645463325252UL; double f = 1.0; long n = 0;
+      System.Diagnostics.Stopwatch sw = System.Diagnostics.Stopwatch.StartNew();
+      while (sw.ElapsedMilliseconds < ms) {
+        for (int i = 0; i < 100000; i++) { x ^= x << 13; x ^= x >> 7; x ^= x << 17; f = f * 1.0000001 + (x & 0xFF); }
+        n += 100000;
+      }
+      sink += x + (ulong)f;
+      return n / sw.Elapsed.TotalSeconds;
+    }
+    public static double CpuSingle(int ms) { return Loop(ms); }
+    public static double CpuMulti(int ms, int threads) {
+      double[] r = new double[threads]; System.Threading.Thread[] t = new System.Threading.Thread[threads];
+      for (int i = 0; i < threads; i++) { int k = i; t[i] = new System.Threading.Thread(delegate() { r[k] = Loop(ms); }); t[i].Start(); }
+      for (int i = 0; i < threads; i++) t[i].Join();
+      double sum = 0; foreach (double v in r) sum += v; return sum;
+    }
+    public static double MemCopy(int mb, int passes) {
+      byte[] a = new byte[mb * 1024 * 1024], b = new byte[mb * 1024 * 1024];
+      Buffer.BlockCopy(a, 0, b, 0, a.Length);
+      System.Diagnostics.Stopwatch sw = System.Diagnostics.Stopwatch.StartNew();
+      for (int i = 0; i < passes; i++) { Buffer.BlockCopy(a, 0, b, 0, a.Length); Buffer.BlockCopy(b, 0, a, 0, a.Length); }
+      return (2.0 * passes * a.Length) / sw.Elapsed.TotalSeconds / (1024.0 * 1024.0 * 1024.0);
+    }
+  }
 }
 '@
     try {

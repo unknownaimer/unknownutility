@@ -1,35 +1,35 @@
 function Get-UTForegroundState {
     <#
     .SYNOPSIS
-        Which process owns the foreground window and whether it looks like a fullscreen game.
+        The running game, found by process so windowed and alt-tabbed games count, plus how its window is shown.
     #>
-    $known = @{}
     $blacklist = @()
-    try {
-        foreach ($p in $sync.configs.games.KnownGames.PSObject.Properties) { $known[$p.Name] = $p.Value }
-        $blacklist = @($sync.configs.games.ShellBlacklist)
-    } catch { }
-    $result = [pscustomobject]@{ Process = ''; Pid = 0; Mode = 'Desktop'; IsGame = $false; Title = ''; Quns = 0 }
+    try { $blacklist = @($sync.configs.games.ShellBlacklist) } catch { }
+    $result = [pscustomobject]@{ Process = ''; Pid = 0; Mode = 'Desktop'; IsGame = $false; Title = ''; Quns = 0; Foreground = $false; Source = '' }
+    $game = $null
+    try { $game = Get-UTRunningGame } catch { }
+    if ($game) {
+        $result.Process = $game.Name; $result.Pid = [int]$game.Pid; $result.Title = $game.Title
+        $result.IsGame = $true; $result.Source = $game.Source; $result.Mode = 'background'
+    }
     if (-not ('UT.NativeV1.Win' -as [type])) { return $result }
     try {
         $f = [UT.NativeV1.Win]::GetForeground()
         $name = [string]$f.ProcessName
-        $result.Process = $name
-        $result.Pid = [int]$f.Pid
         $result.Quns = [int]$f.Quns
         $isShell = $f.IsShell -or [string]::IsNullOrEmpty($name) -or ($blacklist -contains $name)
+        $mode = 'Desktop'
         if (-not $isShell) {
-            if ($f.Quns -eq 3) { $result.Mode = 'Fullscreen' }
-            elseif ($f.CoversMonitor -and $f.Borderless) { $result.Mode = 'Borderless' }
-            elseif ($f.CoversMonitor) { $result.Mode = 'Maximized' }
-            else { $result.Mode = 'Windowed' }
+            if ($f.Quns -eq 3) { $mode = 'Fullscreen' }
+            elseif ($f.CoversMonitor -and $f.Borderless) { $mode = 'Borderless' }
+            elseif ($f.CoversMonitor) { $mode = 'Maximized' }
+            else { $mode = 'Windowed' }
         }
-        if ($name -and $known.ContainsKey($name)) {
-            $result.IsGame = $true
-            $result.Title = [string]$known[$name]
-        } elseif (-not $isShell -and $result.Mode -in 'Fullscreen', 'Borderless') {
-            $result.IsGame = $true
-            $result.Title = $name
+        if ($game) {
+            if ([int]$f.Pid -eq $result.Pid) { $result.Foreground = $true; $result.Mode = $mode }
+        } else {
+            $result.Process = $name; $result.Pid = [int]$f.Pid; $result.Mode = $mode
+            if (-not $isShell -and $mode -in 'Fullscreen', 'Borderless') { $result.IsGame = $true; $result.Title = $name; $result.Foreground = $true; $result.Source = 'window' }
         }
     } catch { }
     return $result

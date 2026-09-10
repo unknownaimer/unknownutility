@@ -26,13 +26,13 @@ jobs:
         shell: pwsh
         run: ./tools/Test-Logic.ps1 -SkipNetwork
 
-      # PRIVATE BETA. While GATE_URL below is non-empty every build is a -Beta build: no licence in
-      # the header, and it refuses to run unless the gate says "ok". To go public, blank this one
-      # line; the next build is the MIT public one and calls nothing.
+      # Public build: GATE_URL is blank, so the script carries the MIT header and calls nothing extra.
+      # To run another private beta, put the gate's origin back on this one line and every build
+      # becomes a -Beta build again (no licence granted, refuses to run unless the gate says "ok").
       - name: Compile
         shell: pwsh
         env:
-          GATE_URL: https://unknowntweaks-gate.unknowntweaks.workers.dev
+          GATE_URL: ''
         run: |
           $p = @{ Owner = '${{ github.repository_owner }}'; Repo = '${{ github.event.repository.name }}' }
           if ($env:GATE_URL) {

@@ -27,12 +27,17 @@ function Complete-UTJob {
         'dns' {
             if ($sync.dnsResults) { $sync.DnsBox.Text = Format-UTDnsTable -Rows $sync.dnsResults } else { $sync.DnsBox.Text = 'no results' }
         }
-        'apply'    { Update-UTTweakLabels }
-        'undo'     { Update-UTTweakLabels }
-        'refresh'  { Update-UTInfoBox; Update-UTFortniteStatus; Update-UTTweakLabels }
-        'fortnite' { Update-UTFortniteStatus }
-        'install'  { }
-        'net'      { }
+        'apply'     { Update-UTTweakLabels }
+        'undo'      { Update-UTTweakLabels }
+        'refresh'   { Update-UTInfoBox; Update-UTFortniteStatus; Update-UTValorantStatus; Update-UTStretchedStatus; Initialize-UTSystemTab; Update-UTTweakLabels }
+        'fortnite'  { Update-UTFortniteStatus }
+        'fnstatus'  { if ($sync.fnLiveStatus) { $sync.FnLiveStatusBox.Text = $sync.fnLiveStatus } }
+        'valorant'  { Update-UTValorantStatus }
+        'stretched' { Update-UTStretchedStatus }
+        'gameready' { Initialize-UTGameReadyList }
+        'benchmark' { Update-UTBenchBox; Update-UTRecommendPanel }
+        'install'   { }
+        'net'       { }
     }
 }
 
@@ -59,7 +64,7 @@ function Update-UTMetrics {
         $sync.GameText.Text = ('{0}   [{1}]' -f $fg.Title, $fg.Mode)
         $sync.GameDetailText.Text = ('{0}  pid {1}   GPU 3D share {2}%' -f $fg.Process, $fg.Pid, $Snap.GameGpu3D)
     } else {
-        $sync.GameText.Text = 'no fullscreen game detected'
+        $sync.GameText.Text = 'no game running'
         $sync.GameDetailText.Text = ''
         if ($fg -and $fg.Process) { $sync.GameDetailText.Text = 'foreground: ' + $fg.Process }
     }

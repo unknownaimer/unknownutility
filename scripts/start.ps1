@@ -104,6 +104,10 @@ $UTSplash = Show-UTSplash -Beta:([bool]$sync.beta)
 Write-UTLog 'collecting system information...'
 $sync.sysinfo = Get-UTSystemInfo
 
+# A stretched session that ended without its restore (crash, power loss) leaves a state file behind;
+# put the desktop and the monitor device back before anything else is shown.
+try { if (Test-UTStretchedState) { Restore-UTStretched } } catch { Write-UTLog ('stretched restore: ' + $_.Exception.Message) -Level Warn }
+
 # ---- window ---------------------------------------------------------------------------------
 [xml]$UTXaml = $inputXML
 $UTReader = New-Object System.Xml.XmlNodeReader $UTXaml

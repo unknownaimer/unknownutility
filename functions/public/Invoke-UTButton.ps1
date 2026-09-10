@@ -155,7 +155,7 @@ Remove-UTBloatApps -Names ([string[]]$Arguments.Names) -AllUsers:([bool]$Argumen
             'BtnClearLog'    { $sync.ConsoleBox.Clear() }
             'BtnBoostGame' {
                 $snap = $sync.metrics.Snapshot
-                if (-not $snap -or -not $snap.Foreground -or -not $snap.Foreground.IsGame) { Write-UTLog 'No game window is in the foreground right now (alt-tab back to the game and press this within a second, or use the tweak in the Risky section for Fortnite)' -Level Warn; return }
+                if (-not $snap -or -not $snap.Foreground -or -not $snap.Foreground.IsGame) { Write-UTLog 'No game is running right now (for Fortnite use the tweak in the Risky section instead)' -Level Warn; return }
                 $p = Get-Process -Id $snap.Foreground.Pid -ErrorAction SilentlyContinue
                 if (-not $p) { Write-UTLog 'Process not found' -Level Warn; return }
                 try {
@@ -164,6 +164,66 @@ Remove-UTBloatApps -Names ([string[]]$Arguments.Names) -AllUsers:([bool]$Argumen
                 } catch {
                     Write-UTLog ("{0}: priority change refused ({1}). Anti-cheat protected games block this; for Fortnite use the 'process priority Above Normal' tweak in the Risky section." -f $p.ProcessName, $_.Exception.Message) -Level Warn
                 }
+            }
+            'BtnExportSel' {
+                $dlg = New-Object Microsoft.Win32.SaveFileDialog
+                $dlg.Filter = 'unknowntweaks selection (*.json)|*.json'
+                $dlg.FileName = 'unknowntweaks-selection.json'
+                if ($dlg.ShowDialog($sync.form)) { Export-UTSelection -Path $dlg.FileName }
+            }
+            'BtnImportSel' {
+                $dlg = New-Object Microsoft.Win32.OpenFileDialog
+                $dlg.Filter = 'unknowntweaks selection (*.json)|*.json'
+                if ($dlg.ShowDialog($sync.form)) { Import-UTSelection -Path $dlg.FileName }
+            }
+            'BtnFnLiveStatus' {
+                if (Start-UTUIJob -Kind 'fnstatus' -Script 'Get-UTFortniteStatus | Out-Null') { $sync.FnLiveStatusBox.Text = 'asking status.epicgames.com...' }
+            }
+            'BtnVaApply' {
+                $sel = $sync.VaProfileList.SelectedItem
+                if (-not $sel) { Write-UTLog 'Select a profile first' -Level Warn; return }
+                [void](Start-UTUIJob -Kind 'valorant' -Arguments @{ Profile = [string]$sel.Tag } -Script 'Set-UTValorantSettings -ProfileName ([string]$Arguments.Profile)')
+            }
+            'BtnVaRestore'     { [void](Start-UTUIJob -Kind 'valorant' -Script 'Restore-UTValorantSettings') }
+            'BtnVaLaunch'      { [void](Start-UTUIJob -Kind 'valorant' -Script 'Start-UTValorant') }
+            'BtnVaShaderCache' { [void](Start-UTUIJob -Kind 'valorant' -Script 'Clear-UTShaderCache') }
+            'BtnVaRefresh'     { Update-UTValorantStatus }
+            'BtnStretchRefresh' { Update-UTStretchedStatus }
+            'BtnStretchAddMode' {
+                $r = Get-UTStretchSelection
+                if (-not $r) { return }
+                [void](Start-UTUIJob -Kind 'stretched' -Arguments @{ W = $r.Width; H = $r.Height } -Script 'Add-UTCustomMode -Width ([int]$Arguments.W) -Height ([int]$Arguments.H)')
+            }
+            'BtnStretchStart' {
+                $r = Get-UTStretchSelection
+                if (-not $r) { return }
+                $game = 'None'
+                if ($sync.StretchGameList.SelectedItem) { $game = [string]$sync.StretchGameList.SelectedItem.Tag }
+                $warn = "Switch the desktop to {0}x{1} stretched" -f $r.Width, $r.Height
+                if ($game -eq 'Valorant') { $warn += ", disable the monitor device while VALORANT runs (it is re-enabled when the game closes, or from Restore desktop)" }
+                if (-not (Confirm-UTAction -Title 'True stretched' -Message ($warn + "?`n`nIf the screen goes black, wait 15 seconds: Windows reverts a mode nobody confirms. Restore desktop puts everything back at any time."))) { return }
+                [void](Start-UTUIJob -Kind 'stretched' -Background -Arguments @{ W = $r.Width; H = $r.Height; Game = $game } -Script 'Start-UTStretched -Width ([int]$Arguments.W) -Height ([int]$Arguments.H) -Game ([string]$Arguments.Game)')
+            }
+            'BtnStretchRestore' { [void](Start-UTUIJob -Kind 'stretched' -Script 'Restore-UTStretched') }
+            'BtnGameReadyRefresh' { Initialize-UTGameReadyList }
+            'BtnGameReadyClear'   { foreach ($cb in $sync.gameReadyBoxes.Values) { $cb.IsChecked = $false } }
+            'BtnGameReadyClose' {
+                $names = @($sync.gameReadyBoxes.Keys | Where-Object { $sync.gameReadyBoxes[$_].IsChecked })
+                if ($names.Count -eq 0) { Write-UTLog 'Tick the apps to close first' -Level Warn; return }
+                $list = @($names | ForEach-Object { ' - ' + [string]$sync.gameReadyBoxes[$_].Content }) -join "`n"
+                if (-not (Confirm-UTAction -Title 'Game Ready' -Message ("Close {0} app(s)?`n{1}`n`nUnsaved work in them is lost. Start them again yourself afterwards." -f $names.Count, $list))) { return }
+                [void](Start-UTUIJob -Kind 'gameready' -Arguments @{ Names = $names } -Script 'Stop-UTGameReadyProcesses -Names ([string[]]$Arguments.Names) | Out-Null')
+            }
+            'BtnBenchmark' {
+                if (Start-UTUIJob -Kind 'benchmark' -Script 'Invoke-UTBenchmark | Out-Null') { $sync.BenchBox.Text = 'running, about ten seconds...' }
+            }
+            'BtnRecommendForPc' { Update-UTRecommendPanel }
+            'BtnRecommendTick' {
+                $n = 0
+                foreach ($r in @(Get-UTRecommendations)) {
+                    if ($r.Tick -and $sync.tweakBoxes.ContainsKey($r.Id)) { $sync.tweakBoxes[$r.Id].IsChecked = $true; $n++ }
+                }
+                Write-UTLog ("{0} tweak(s) ticked in TWEAKS for this PC; risky ones are listed but never ticked automatically" -f $n)
             }
             default { Write-UTLog "No action for $Name" -Level Warn }
         }

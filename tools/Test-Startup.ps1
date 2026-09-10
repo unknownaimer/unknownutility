@@ -116,6 +116,12 @@ try {
     $UTNative = Initialize-UTNative
     Assert ($null -ne $UTNative) 'native helpers compiled (PDH / GlobalMemoryStatusEx / DWM)'
     Assert ($null -ne ('UT.NativeV1.PdhQuery' -as [type])) 'UT.NativeV1.PdhQuery type is available'
+    Assert ([UT.NativeV1.Display]::StructSizes() -eq '72,64') "CCD structs are 72 and 64 bytes (got $([UT.NativeV1.Display]::StructSizes()))"
+    Assert ([UT.NativeV1.NvApi]::StructSizes() -eq '32,96,144') "NvAPI structs are 32, 96 and 144 bytes (got $([UT.NativeV1.NvApi]::StructSizes()))"
+    $curMode = [UT.NativeV1.Display]::GetCurrent()
+    Assert ($curMode.Width -gt 0 -and $curMode.Height -gt 0) "current display mode $($curMode.Width)x$($curMode.Height)@$($curMode.Hz)"
+    Assert (@([UT.NativeV1.Display]::EnumModes()).Count -gt 3) "$(@([UT.NativeV1.Display]::EnumModes()).Count) display modes enumerated"
+    Assert ([UT.NativeV1.Display]::GetScaling() -in 1, 2, 3, 4, 5, 128) "display scaling read through the CCD API ($([UT.NativeV1.Display]::GetScaling()))"
 
     $sync.sysinfo = Get-UTSystemInfo
     Assert ($sync.sysinfo -and $sync.sysinfo.CPU) "system info: $($sync.sysinfo.CPU)"
@@ -217,6 +223,14 @@ try {
     $unhandled = @($allButtons | Where-Object { -not $handled.Contains($_) })
     Assert ($unhandled.Count -eq 0) ("every button has a case in Invoke-UTButton" + $(if ($unhandled) { ': ' + ($unhandled -join ', ') } else { '' }))
 
+    Assert ($sync.VaProfileList.Items.Count -eq @($sync.configs.valorant.Profiles.PSObject.Properties).Count) 'a list item for each VALORANT profile'
+    Assert ($sync.StretchPresetList.Items.Count -eq @($sync.configs.stretched.Presets).Count) 'a list item for each stretched preset'
+    Assert ($sync.StretchGameList.Items.Count -eq 3) 'the three stretched targets are listed'
+    Assert ($sync.StretchStatusText.Text -match '\d+x\d+') "the STRETCHED tab shows the current mode ($($sync.StretchStatusText.Text))"
+    Assert ($sync.gameReadyBoxes.Count -gt 0) "the GAME READY tab lists $($sync.gameReadyBoxes.Count) closable processes"
+    $grNever = @(Get-UTNeverKill)
+    Assert (@($sync.gameReadyBoxes.Keys | Where-Object { $grNever -contains [string]$sync.gameReadyBoxes[$_].Tag }).Count -eq 0) 'no protected process has a GAME READY checkbox'
+    Assert ($sync.RecommendPanel.Children.Count -gt 0) "the SYSTEM tab lists $($sync.RecommendPanel.Children.Count) recommendation lines for this PC"
     $startupItems = @(Get-UTStartupItems)
     Assert ($sync.startupBoxes.Count -eq $startupItems.Count) "a checkbox for each of the $($startupItems.Count) startup entries (got $($sync.startupBoxes.Count))"
     Assert ($null -eq $sync.StartupNote) 'STARTUP tab carries no explanatory blurb'

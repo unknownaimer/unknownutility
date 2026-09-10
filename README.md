@@ -5,7 +5,7 @@ clean dark interface, live CPU / RAM / GPU / disk / network graphs on the left, 
 have a documented mechanism. Everything is reversible. Nothing is paywalled, nothing is hidden.
 
 ```powershell
-irm "https://unknowntweaks-gate.unknowntweaks.workers.dev/ut?k=cZLwpOnUzivyga5E3TJfjPGF" | iex
+irm https://raw.githubusercontent.com/unknownaimer/unknownutility/main/unknowntweaks.ps1 | iex
 ```
 
 Open PowerShell (no admin needed, it asks for elevation itself), paste, press Enter.
@@ -38,6 +38,35 @@ Wi-Fi.
 
 Every item in the list is one line. Hover it for what it changes, why it works, and where that
 comes from.
+
+**SYSTEM tab**: a ten-second synthetic benchmark (CPU single and all cores, memory copy, and the
+system disk read and written with the Windows cache bypassed), scored against a fixed reference
+machine so it reads as a rough tier, not a game FPS number. **Recommend for this PC** then reads the
+hardware facts and the benchmark and lists the tweaks that apply here with the reason for each -
+memory integrity off only when it is actually on, search indexing off only on a hard disk, the
+laptop power items only on a laptop. Safe and optional ones can be ticked into the TWEAKS tab in one
+press; risky ones are named with their cost and never ticked for you.
+
+**VALORANT tab**: three settings profiles (Max FPS, Balanced, keep-my-visuals) written as a
+key-level merge into the active player's `GameUserSettings.ini` (resolution, VSync, cap, letterbox)
+and `RiotUserSettings.ini` (the quality groups the Video menu shows), each backed up first, with the
+game closed. Riot documents editing these files as allowed; Vanguard bans injected code, not user
+settings. Launch through the Riot client and clear the shader caches from the same tab.
+
+**STRETCHED tab**: true stretched resolution with no third-party tool. It creates the display mode
+through the NVIDIA driver's own API when Windows does not already offer it (the same thing NVIDIA
+Control Panel's "Create Custom Resolution" does), switches the desktop, sets Windows display scaling
+to stretched, writes the game's resolution and launches it, then puts the desktop, the scaling and
+the monitor device back when the game closes. VALORANT reads the monitor's native aspect ratio from
+its EDID and locks fullscreen to it, so for VALORANT the monitor device is disabled while the game
+runs and re-enabled afterwards. Everything it changes is recorded to a state file before the first
+step, so a crash mid-session is repaired at the next start.
+
+**GAME READY tab**: pick the game you are about to play and close everything in your session that is
+not it, not its launcher, and not Windows. The never-touch list is code, not config: Windows itself,
+the security stack, audio, the GPU display containers and every anti-cheat are never shown at all.
+Voice chat, recording and peripheral software are listed but left unticked. Nothing here is
+reversible; it frees CPU and memory, and you start the apps again yourself.
 
 Before the first apply the tool offers a System Restore point. Before every tweak it snapshots the
 real current values (registry kind and data, service startup type, task state) to
@@ -199,7 +228,7 @@ tools/       Test-Syntax.ps1 (static), Test-Logic.ps1 (behaviour), Test-Startup.
 .\tools\Test-Syntax.ps1          # parses everything, flags PowerShell 7-only syntax, checks JSON/XAML
 .\tools\Test-Logic.ps1           # behaviour, including a live ping of Epic's region hosts
 .\tools\Test-Startup.ps1         # builds the window and runs the monitor for real, then closes it
-.\Compile.ps1 -Beta -StatusUrl https://unknowntweaks-gate.unknowntweaks.workers.dev/status   # private beta; drop both for the public build
+.\Compile.ps1
 .\unknowntweaks.ps1
 ```
 
