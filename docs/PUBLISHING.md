@@ -116,3 +116,55 @@ The order of operations, so the one-liner never points at something public:
 
 When the beta ends: compile without `-Beta` (the MIT header comes back), make the repository
 public, update the README one-liner to the raw GitHub URL, delete the gate.
+
+## 9. Building an exe for testers
+
+```powershell
+.\tools\Build-Exe.ps1
+```
+
+That compiles the script and wraps it into `unknowntweaks.exe` next to it. The exe is a small
+launcher with `unknowntweaks.ps1` embedded as a resource: on run it writes the script to
+`%LOCALAPPDATA%\unknowntweaks\app` and starts Windows PowerShell 5.1 on it.
+
+Two things about how it is built:
+
+* The script goes to a **stable path**, not a temp file deleted on exit. unknowntweaks relaunches
+  itself elevated by re-running its own file, so a file deleted when the first process exits would
+  be gone before the elevated run could read it.
+* The exe carries a manifest requesting administrator, so testers get **one** UAC prompt from the
+  exe rather than a second one when the script relaunches itself.
+
+It is built with the C# compiler that ships inside the .NET Framework, so nothing is downloaded and
+no third-party packer is involved. The exe is a build artifact and `.gitignore` keeps it out of the
+repository; attach it to a GitHub release instead of committing it.
+
+### What testers will see, and what to tell them
+
+The exe is **unsigned**, and there is no way around that without a code-signing certificate:
+
+* **SmartScreen** shows "Windows protected your PC" on first run. The tester has to click
+  **More info** then **Run anyway**. This is not a sign anything is wrong; it is what every unsigned
+  binary from a new publisher gets.
+* **Defender** scans it clean today (verified with `MpCmdRun -Scan` on the build machine), but
+  heuristics can flag any script wrapped in an exe, and a false positive is more likely for a tool
+  that edits the registry and stops services. Tell testers up front rather than letting them find a
+  quarantine notice on their own.
+* SmartScreen's warning fades as more people run the same file, which does not help a first tester
+  and does not carry across rebuilds: every new build starts from zero reputation.
+
+An EV code-signing certificate removes the warning immediately, an ordinary one earns reputation
+faster than none. Both cost money and both require a verified identity, which is worth weighing
+against how anonymous the account is meant to stay.
+
+### The alternative worth offering
+
+For anyone who trusts a command more than a downloaded exe, the one-liner needs no exe, no
+SmartScreen prompt and no download:
+
+```powershell
+irm https://raw.githubusercontent.com/unknownaimer/unknownutility/main/unknowntweaks.ps1 | iex
+```
+
+It runs the same script the exe carries. The exe exists for people who would rather double-click
+something.
