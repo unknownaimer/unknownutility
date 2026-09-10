@@ -176,6 +176,17 @@ Remove-UTBloatApps -Names ([string[]]$Arguments.Names) -AllUsers:([bool]$Argumen
                 $dlg.Filter = 'unknowntweaks selection (*.json)|*.json'
                 if ($dlg.ShowDialog($sync.form)) { Import-UTSelection -Path $dlg.FileName }
             }
+            'BtnModeSimple'   { Set-UTMode -Mode 'Simple' }
+            'BtnModeAdvanced' { Set-UTMode -Mode 'Advanced' }
+            'BtnSimpleUndo'   { Invoke-UTButton -Name 'BtnUndoAll' }
+            'BtnSimpleOptimize' {
+                $game = [string]$sync.simpleGame
+                if (-not $game) { Write-UTLog 'Pick a game first' -Level Warn; return }
+                $steps = @(Get-UTSimplePlan -Game $game | Where-Object { $_.Applies })
+                $list = ($steps | ForEach-Object { ' - ' + $_.Text }) -join "`n"
+                if (-not (Confirm-UTAction -Title ('Optimize for ' + $sync.configs.simple.Games.$game.Content) -Message ("This will run {0} step(s):`n{1}`n`nA restore point is taken first and every tweak is recorded before it changes anything, so Undo everything puts it all back.`n`nGo ahead?" -f $steps.Count, $list))) { return }
+                [void](Start-UTUIJob -Kind 'simple' -Arguments @{ Game = $game } -Script 'Invoke-UTSimpleOptimize -Game ([string]$Arguments.Game)')
+            }
             'BtnNvProfileApply' {
                 $sel = $sync.NvProfileList.SelectedItem
                 if (-not $sel) { Write-UTLog 'Select a driver preset first' -Level Warn; return }

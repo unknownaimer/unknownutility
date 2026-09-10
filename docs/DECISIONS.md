@@ -646,3 +646,54 @@ it is the pairing every community guide uses, an unknown switch costs nothing (W
 the engine ignores it), and it is what the owner asked for. The placebo table still states plainly
 that `-high` on its own does nothing, so the shipped option and the documentation agree instead of
 contradicting each other. See s13 for the evidence that `-d3d11` still works on client 42.10.
+
+## 16. Simple mode, and the HUD restyle (2026-09-10)
+
+### Two modes
+
+A one-click view for people who cannot judge a tweak's cost, and the full tool for people who can.
+The toggle sits in the header bar, visible from every tab, and the window **opens in Advanced**: a
+returning user should land in the tool they know, with Simple one click away.
+
+Simple mode is: pick a game, read what will happen, press one button. Three rules make it safe to
+hand to a stranger:
+
+1. **It never reaches past the safe tier.** The tweak step is exactly the safe recommended preset -
+   the same set "Select recommended" ticks - and a test asserts it can contain nothing else. The
+   risky tier is unreachable from Simple mode by construction, not by discipline.
+2. **A restore point is always the first step**, not an option. A test asserts every game's plan
+   starts with it.
+3. **Nothing is hidden.** The plan is rendered before the button is pressed, one line per step with
+   what it does and why, and the steps that will *not* run are listed too, greyed, with the reason.
+   The confirmation dialog repeats the list.
+
+Steps are independent: a game that is not installed, or is running, fails its own step and the rest
+still run, because someone who pressed one button should not be left half-done with no idea which
+half. The tally is logged at the end and every applied tweak is still individually undoable.
+
+**The DX11 decision is per machine, not per config.** The owner asked for Fortnite to get
+`-high -d3d11`. Writing that blindly would be a downgrade on a modern card, where Epic's DX12
+Performance Mode is faster, so the plan carries both arguments with opposing conditions and picks
+one: `legacy-gpu` (NVIDIA, GTX 9/10/16-series or 4 GB and under) gets `-NOSPLASH -high -d3d11`;
+everything else gets `-NOSPLASH`. The NVIDIA driver profile step is skipped outright on AMD and
+Intel. Conditions are **named**, resolved in code, never scripted in config, so a config edit cannot
+run anything. Tests pin all three cases: a GTX 1650 gets the DX11 arguments, an RTX 4070 does not,
+an AMD card is offered no NVIDIA profile, and exactly one launch-argument step ever applies.
+
+### The restyle
+
+Chosen direction: instrument panel. The live readings are the only thing allowed to carry colour.
+
+* One warm accent (`#E8A33D`) for every live value: the five graphs, their numbers, the header
+  strip, the game readout, and the primary action button. Everything else is grey.
+* A header bar carries the wordmark, a live CPU / RAM / GPU / ping strip visible in both modes, and
+  the mode toggle. The duplicate teal wordmark in the left panel went with it.
+* Section headings dropped from blue to plain foreground, tier headings from teal and yellow to
+  grey. **Risky stays red** - that colour is load-bearing, it is the only one that means something
+  rather than decorating something.
+
+Two defects the rendered screenshots caught that no unit test would have: the `GameTile` control
+template used `Name` where WPF templates need `x:Name`, which broke the named-control cross-check;
+and at 1280 px the "Undo everything" button overlapped the restore-point checkbox, fixed by
+shortening that label and moving its explanation into a tooltip. Worth remembering that the startup
+test builds the window but never looks at it - only a screenshot catches overlap.

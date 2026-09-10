@@ -77,8 +77,8 @@ function Update-UTTweakLabels {
 function Initialize-UTTweaksTab {
     $panel = $sync.TweaksPanel
     $tiers = @(
-        @{ Tier = 'safe';     Title = 'SAFE  (recommended preset)'; Color = '#4EC9B0'; Text = 'Documented Windows settings with a real mechanism and no meaningful downside. All reversible; originals are snapshotted before the first apply.' },
-        @{ Tier = 'optional'; Title = 'OPTIONAL';                    Color = '#DCDCAA'; Text = 'Help some setups (laptops, older GPUs, specific games) and do nothing for others. Read the note under each one.' },
+        @{ Tier = 'safe';     Title = 'SAFE  (recommended preset)'; Color = '#D4D4D4'; Text = 'Documented Windows settings with a real mechanism and no meaningful downside. All reversible; originals are snapshotted before the first apply.' },
+        @{ Tier = 'optional'; Title = 'OPTIONAL';                    Color = '#D4D4D4'; Text = 'Help some setups (laptops, older GPUs, specific games) and do nothing for others. Read the note under each one.' },
         @{ Tier = 'risky';    Title = 'RISKY  (read every line before ticking)'; Color = '#F14C4C'; Text = 'Real upside for some PCs, real cost for all: security, stability or boot risk. Never part of a preset. Each one records what it changed so Undo can put it back.' }
     )
     $all = @()
@@ -92,7 +92,7 @@ function Initialize-UTTweaksTab {
         foreach ($it in $items) {
             $cat = [string]$it.Tweak.Category
             if ($cat -ne $lastCat -and $t.Tier -ne 'risky') {
-                $c = New-UTTextBlock -Text ('// ' + $cat) -StyleKey 'Dim' -Color '#569CD6'
+                $c = New-UTTextBlock -Text ('// ' + $cat) -StyleKey 'Dim' -Color '#858585'
                 $c.Margin = '8,10,8,0'
                 [void]$panel.Children.Add($c)
                 $lastCat = $cat
@@ -345,12 +345,15 @@ function Initialize-UTUI {
     $sync.CreditText.Text = 'MADE BY ' + $credits.Author
     Set-UTHyperlink -Link $sync.SupportHyperlink -Url $credits.Support
     Set-UTHyperlink -Link $sync.TikTokHyperlink -Url $credits.TikTok
-    [void](New-UTGraphCard -Key cpu  -Title 'CPU'         -Color '#4EC9B0' -Parent $sync.GraphPanel)
-    [void](New-UTGraphCard -Key ram  -Title 'MEMORY'      -Color '#569CD6' -Parent $sync.GraphPanel)
-    [void](New-UTGraphCard -Key gpu  -Title 'GPU'         -Color '#CE9178' -Parent $sync.GraphPanel)
-    [void](New-UTGraphCard -Key disk -Title 'DISK ACTIVE' -Color '#DCDCAA' -Parent $sync.GraphPanel)
-    [void](New-UTGraphCard -Key net  -Title 'NETWORK'     -Color '#C586C0' -AutoScale -MinScale 64 -Parent $sync.GraphPanel)
+    # One warm accent across every graph: the readings are the only thing that should catch the eye.
+    $live = '#E8A33D'
+    [void](New-UTGraphCard -Key cpu  -Title 'CPU'         -Color $live -Parent $sync.GraphPanel)
+    [void](New-UTGraphCard -Key ram  -Title 'MEMORY'      -Color $live -Parent $sync.GraphPanel)
+    [void](New-UTGraphCard -Key gpu  -Title 'GPU'         -Color $live -Parent $sync.GraphPanel)
+    [void](New-UTGraphCard -Key disk -Title 'DISK ACTIVE' -Color $live -Parent $sync.GraphPanel)
+    [void](New-UTGraphCard -Key net  -Title 'NETWORK'     -Color $live -AutoScale -MinScale 64 -Parent $sync.GraphPanel)
     Initialize-UTTweaksTab
+    Initialize-UTSimpleTab
     Initialize-UTSystemTab
     Initialize-UTFortniteTab
     Initialize-UTNvProfileTab
@@ -362,6 +365,8 @@ function Initialize-UTUI {
     Initialize-UTStartupTab
     Initialize-UTDebloatTab
     Update-UTInfoBox
+    # Advanced first: the full tool is what a returning user expects, and Simple is one click away.
+    Set-UTMode -Mode 'Advanced'
     $buttons = @()
     foreach ($k in @($sync.Keys)) {
         if ($sync[$k] -is [System.Windows.Controls.Button]) {

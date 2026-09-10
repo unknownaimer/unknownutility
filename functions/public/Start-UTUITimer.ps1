@@ -33,6 +33,7 @@ function Complete-UTJob {
         'fortnite'  { Update-UTFortniteStatus }
         'fnstatus'  { if ($sync.fnLiveStatus) { $sync.FnLiveStatusBox.Text = $sync.fnLiveStatus } }
         'nvprofile' { Update-UTNvProfileStatus }
+        'simple'    { Update-UTTweakLabels; Update-UTSimplePlan }
         'valorant'  { Update-UTValorantStatus }
         'stretched' { Update-UTStretchedStatus }
         'gameready' { Initialize-UTGameReadyList }
@@ -69,6 +70,12 @@ function Update-UTMetrics {
         $sync.GameDetailText.Text = ''
         if ($fg -and $fg.Process) { $sync.GameDetailText.Text = 'foreground: ' + $fg.Process }
     }
+    # The header strip is the same readings as the cards, kept visible in both modes.
+    if ($null -ne $Snap.CpuPercent) { $sync.HudCpu.Text = '{0:N0}%' -f $Snap.CpuPercent }
+    if ($null -ne $Snap.MemUsedPercent) { $sync.HudRam.Text = '{0:N0}%' -f $Snap.MemUsedPercent }
+    if ($null -ne $Snap.GpuPercent) { $sync.HudGpu.Text = '{0:N0}%' -f $Snap.GpuPercent } else { $sync.HudGpu.Text = 'n/a' }
+    if ($null -ne $Snap.InetMs) { $sync.HudPing.Text = '{0} ms' -f $Snap.InetMs }
+
     $gw = '--'; if ($null -ne $Snap.GatewayMs) { $gw = ('{0} ms' -f $Snap.GatewayMs) } elseif ($Snap.GatewayStatus -ne 'n/a') { $gw = 'no reply' }
     $inet = '--'; if ($null -ne $Snap.InetMs) { $inet = ('{0} ms' -f $Snap.InetMs) } elseif ($Snap.InetStatus -ne 'n/a') { $inet = 'no reply' }
     $sync.PingText.Text = ('router {0}   internet {1}' -f $gw, $inet)

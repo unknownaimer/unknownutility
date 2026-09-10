@@ -1866,6 +1866,101 @@ function Stop-UTJobs {
 
 #endregion
 
+#region Invoke-UTSimple.ps1
+function Test-UTSimpleCondition {
+    <#
+    .SYNOPSIS
+        Whether one step of a Simple-mode plan applies to this PC, and the reason when it does not.
+    .DESCRIPTION
+        Conditions are named rather than scripted so a config edit can never run code. "legacy-gpu" is
+        the one that matters: forcing the DX11 renderer helps older NVIDIA cards and hurts modern ones,
+        so a one-click mode has to decide per machine instead of writing the same argument everywhere.
+    #>
+    param([string]$Name)
+    $si = $sync.sysinfo
+    switch ($Name) {
+        'nvidia' {
+            if ($si.GPUVendor -eq 'NVIDIA') { return @{ Ok = $true } }
+            return @{ Ok = $false; Why = 'no NVIDIA GPU on this PC' }
+        }
+        'legacy-gpu' {
+            if ($si.GPUVendor -ne 'NVIDIA') { return @{ Ok = $false; Why = 'the DX11 switch is an NVIDIA-era setting' } }
+            if ($si.GPU -match 'GTX\s*(9|10|16)\d0' -or [double]$si.VramGB -le 4) { return @{ Ok = $true } }
+            return @{ Ok = $false; Why = ('{0} does better on DX12 Performance Mode' -f $si.GPU) }
+        }
+        'modern-gpu' {
+            $legacy = Test-UTSimpleCondition -Name 'legacy-gpu'
+            if ($legacy.Ok) { return @{ Ok = $false; Why = 'this GPU takes the DX11 route instead' } }
+            return @{ Ok = $true }
+        }
+        default { return @{ Ok = $true } }
+    }
+}
+
+function Get-UTSimplePlan {
+    <#
+    .SYNOPSIS
+        The steps a Simple-mode game would run here, each already resolved against this PC.
+    #>
+    param([Parameter(Mandatory = $true)][string]$Game)
+    $cfg = $sync.configs.simple.Games.$Game
+    if (-not $cfg) { throw "Unknown Simple-mode game $Game" }
+    $out = New-Object System.Collections.Generic.List[object]
+    foreach ($step in @($cfg.Steps)) {
+        $c = Test-UTSimpleCondition -Name ([string]$step.When)
+        $out.Add([pscustomobject]@{
+            Kind = [string]$step.Kind; Value = [string]$step.Value
+            Text = [string]$step.Text; Detail = [string]$step.Detail
+            Applies = [bool]$c.Ok; Why = [string]$c.Why
+        })
+    }
+    return $out.ToArray()
+}
+
+function Invoke-UTSimpleOptimize {
+    <#
+    .SYNOPSIS
+        Runs one Simple-mode plan top to bottom.
+    .DESCRIPTION
+        Every step is independent: a game that is not installed, or is running, fails its own step and
+        the rest still run, because a newbie pressing one button should not be left half done with no
+        idea which half. Each step reports itself and the tally is logged at the end.
+    #>
+    param([Parameter(Mandatory = $true)][string]$Game)
+    $plan = @(Get-UTSimplePlan -Game $Game | Where-Object { $_.Applies })
+    $done = 0; $failed = 0
+    Write-UTLog ("Simple mode: optimizing for {0} ({1} step(s))" -f $sync.configs.simple.Games.$Game.Content, $plan.Count)
+    foreach ($step in $plan) {
+        try {
+            switch ($step.Kind) {
+                'restorepoint'     { [void](New-UTRestorePoint) }
+                'tweaks'           {
+                    $ids = @($sync.configs.tweaks.PSObject.Properties |
+                             Where-Object { $_.Value.Tier -eq 'safe' -and $_.Value.Recommended -and (Test-UTTweakEligible -Tweak $_.Value) } |
+                             ForEach-Object { $_.Name })
+                    Invoke-UTTweaks -Ids ([string[]]$ids)
+                }
+                'fortnite-profile' { Set-UTFortniteSettings -ProfileName $step.Value }
+                'fortnite-args'    { Set-UTLaunchArgs -Arguments $step.Value }
+                'valorant-profile' { Set-UTValorantSettings -ProfileName $step.Value }
+                'nvprofile'        { Set-UTNvProfile -PresetName $step.Value }
+                default            { Write-UTLog ("unknown Simple step {0}" -f $step.Kind) -Level Warn }
+            }
+            $done++
+        } catch {
+            $failed++
+            Write-UTLog ('{0}: {1}' -f $step.Text, $_.Exception.Message) -Level Error
+        }
+    }
+    if ($failed -eq 0) {
+        Write-UTLog ("Simple mode finished: {0} step(s) done. Restart the game, and reboot when you get the chance." -f $done) -Level Ok
+    } else {
+        Write-UTLog ("Simple mode finished: {0} step(s) done, {1} could not run (each one is logged above). Everything that did run is still undoable." -f $done, $failed) -Level Warn
+    }
+}
+
+#endregion
+
 #region Invoke-UTTweaks.ps1
 function Invoke-UTScript {
     param([Parameter(Mandatory = $true)][string]$Name, [Parameter(Mandatory = $true)][string]$Script)
@@ -4211,6 +4306,117 @@ function Update-UTRecommendPanel {
 
 #endregion
 
+#region Initialize-UTSimple.ps1
+function Set-UTMode {
+    <#
+    .SYNOPSIS
+        Switches between the one-click view and the full tool, and paints the toggle.
+    #>
+    param([Parameter(Mandatory = $true)][ValidateSet('Simple', 'Advanced')][string]$Mode)
+    $simple = ($Mode -eq 'Simple')
+    $sync.SimpleRoot.Visibility = $(if ($simple) { 'Visible' } else { 'Collapsed' })
+    $sync.AdvancedRoot.Visibility = $(if ($simple) { 'Collapsed' } else { 'Visible' })
+    $live = $sync.form.FindResource('Live')
+    $dim = $sync.form.FindResource('FgDim')
+    $bg = $sync.form.FindResource('Bg2')
+    $sync.BtnModeSimple.Background = $(if ($simple) { $bg } else { [System.Windows.Media.Brushes]::Transparent })
+    $sync.BtnModeSimple.Foreground = $(if ($simple) { $live } else { $dim })
+    $sync.BtnModeAdvanced.Background = $(if ($simple) { [System.Windows.Media.Brushes]::Transparent } else { $bg })
+    $sync.BtnModeAdvanced.Foreground = $(if ($simple) { $dim } else { $live })
+    $sync.mode = $Mode
+    if ($simple) { Update-UTSimplePlan }
+}
+
+function Initialize-UTSimpleTab {
+    <#
+    .SYNOPSIS
+        Builds the game tiles from config/simple.json, marking which are actually installed here.
+    #>
+    $panel = $sync.SimpleGamePanel
+    $panel.Children.Clear()
+    $sync.simpleTiles = @{}
+    $installed = @{}
+    try { $installed['Fortnite'] = [bool](Get-UTFortnite).Installed } catch { $installed['Fortnite'] = $false }
+    try { $installed['Valorant'] = [bool](Get-UTValorant).Installed } catch { $installed['Valorant'] = $false }
+    $games = @($sync.configs.simple.Games.PSObject.Properties | Sort-Object { [int]$_.Value.Order })
+    foreach ($g in $games) {
+        $name = $g.Name
+        $state = 'ready'
+        if ($installed.ContainsKey($name)) { $state = $(if ($installed[$name]) { 'installed' } else { 'not found on this PC' }) }
+        elseif ($name -eq 'Other') { $state = 'Windows-side tweaks only' }
+        $stack = New-Object System.Windows.Controls.StackPanel
+        $title = New-Object System.Windows.Controls.TextBlock
+        $title.Text = [string]$g.Value.Content; $title.FontWeight = 'Bold'; $title.FontSize = 13
+        $sub = New-Object System.Windows.Controls.TextBlock
+        $sub.Text = $state; $sub.FontSize = 11; $sub.Margin = '0,4,0,0'
+        $sub.Foreground = $sync.form.FindResource('FgDim')
+        [void]$stack.Children.Add($title); [void]$stack.Children.Add($sub)
+        $tile = New-Object System.Windows.Controls.Button
+        $tile.Style = $sync.form.FindResource('GameTile')
+        $tile.Content = $stack
+        $tile.Tag = $name
+        $tile.Add_Click({ Select-UTSimpleGame -Game ([string]$this.Tag) })
+        [void]$panel.Children.Add($tile)
+        $sync.simpleTiles[$name] = $tile
+    }
+    $first = @($games | Where-Object { -not $installed.ContainsKey($_.Name) -or $installed[$_.Name] } | Select-Object -First 1)
+    if ($first.Count -gt 0) { Select-UTSimpleGame -Game $first[0].Name } else { Select-UTSimpleGame -Game 'Other' }
+}
+
+function Select-UTSimpleGame {
+    param([Parameter(Mandatory = $true)][string]$Game)
+    $sync.simpleGame = $Game
+    $live = $sync.form.FindResource('Live')
+    $border = $sync.form.FindResource('BorderBrush')
+    foreach ($k in @($sync.simpleTiles.Keys)) {
+        $sync.simpleTiles[$k].BorderBrush = $(if ($k -eq $Game) { $live } else { $border })
+        $sync.simpleTiles[$k].BorderThickness = $(if ($k -eq $Game) { '2' } else { '1' })
+    }
+    Update-UTSimplePlan
+}
+
+function Update-UTSimplePlan {
+    <#
+    .SYNOPSIS
+        Renders the plan for the selected game: what will run, and what will not and why.
+    #>
+    $panel = $sync.SimplePlanPanel
+    if (-not $panel) { return }
+    $panel.Children.Clear()
+    $game = [string]$sync.simpleGame
+    if (-not $game) { return }
+    $steps = @()
+    try { $steps = @(Get-UTSimplePlan -Game $game) } catch {
+        [void]$panel.Children.Add((New-UTTextBlock -Text ('plan unavailable: ' + $_.Exception.Message) -StyleKey 'Dim'))
+        return
+    }
+    $live = $sync.form.FindResource('Live')
+    $dim = $sync.form.FindResource('FgDim')
+    foreach ($s in $steps) {
+        $row = New-Object System.Windows.Controls.StackPanel
+        $row.Orientation = 'Horizontal'
+        $row.Margin = '0,0,0,2'
+        $mark = New-Object System.Windows.Controls.TextBlock
+        $mark.Text = $(if ($s.Applies) { '+' } else { '-' })
+        $mark.Width = 18
+        $mark.Foreground = $(if ($s.Applies) { $live } else { $dim })
+        $text = New-Object System.Windows.Controls.TextBlock
+        $text.Text = $s.Text
+        $text.Foreground = $(if ($s.Applies) { $sync.form.FindResource('Fg') } else { $dim })
+        [void]$row.Children.Add($mark); [void]$row.Children.Add($text)
+        [void]$panel.Children.Add($row)
+        $detail = New-Object System.Windows.Controls.TextBlock
+        $detail.Text = $(if ($s.Applies) { $s.Detail } else { 'skipped: ' + $s.Why })
+        $detail.FontSize = 11; $detail.Foreground = $dim; $detail.TextWrapping = 'Wrap'; $detail.Margin = '18,0,0,8'
+        [void]$panel.Children.Add($detail)
+    }
+    $applies = @($steps | Where-Object { $_.Applies }).Count
+    $sync.BtnSimpleOptimize.Content = 'OPTIMIZE ' + [string]$sync.configs.simple.Games.$game.Content
+    $sync.SimpleNoteText.Text = ("{0} step(s) will run. Nothing happens until you press the button, and every tweak it applies is recorded first so Undo everything puts it all back." -f $applies)
+}
+
+#endregion
+
 #region Initialize-UTUI.ps1
 function New-UTTextBlock {
     param([string]$Text, [string]$StyleKey = 'Body', [string]$Color)
@@ -4291,8 +4497,8 @@ function Update-UTTweakLabels {
 function Initialize-UTTweaksTab {
     $panel = $sync.TweaksPanel
     $tiers = @(
-        @{ Tier = 'safe';     Title = 'SAFE  (recommended preset)'; Color = '#4EC9B0'; Text = 'Documented Windows settings with a real mechanism and no meaningful downside. All reversible; originals are snapshotted before the first apply.' },
-        @{ Tier = 'optional'; Title = 'OPTIONAL';                    Color = '#DCDCAA'; Text = 'Help some setups (laptops, older GPUs, specific games) and do nothing for others. Read the note under each one.' },
+        @{ Tier = 'safe';     Title = 'SAFE  (recommended preset)'; Color = '#D4D4D4'; Text = 'Documented Windows settings with a real mechanism and no meaningful downside. All reversible; originals are snapshotted before the first apply.' },
+        @{ Tier = 'optional'; Title = 'OPTIONAL';                    Color = '#D4D4D4'; Text = 'Help some setups (laptops, older GPUs, specific games) and do nothing for others. Read the note under each one.' },
         @{ Tier = 'risky';    Title = 'RISKY  (read every line before ticking)'; Color = '#F14C4C'; Text = 'Real upside for some PCs, real cost for all: security, stability or boot risk. Never part of a preset. Each one records what it changed so Undo can put it back.' }
     )
     $all = @()
@@ -4306,7 +4512,7 @@ function Initialize-UTTweaksTab {
         foreach ($it in $items) {
             $cat = [string]$it.Tweak.Category
             if ($cat -ne $lastCat -and $t.Tier -ne 'risky') {
-                $c = New-UTTextBlock -Text ('// ' + $cat) -StyleKey 'Dim' -Color '#569CD6'
+                $c = New-UTTextBlock -Text ('// ' + $cat) -StyleKey 'Dim' -Color '#858585'
                 $c.Margin = '8,10,8,0'
                 [void]$panel.Children.Add($c)
                 $lastCat = $cat
@@ -4559,12 +4765,15 @@ function Initialize-UTUI {
     $sync.CreditText.Text = 'MADE BY ' + $credits.Author
     Set-UTHyperlink -Link $sync.SupportHyperlink -Url $credits.Support
     Set-UTHyperlink -Link $sync.TikTokHyperlink -Url $credits.TikTok
-    [void](New-UTGraphCard -Key cpu  -Title 'CPU'         -Color '#4EC9B0' -Parent $sync.GraphPanel)
-    [void](New-UTGraphCard -Key ram  -Title 'MEMORY'      -Color '#569CD6' -Parent $sync.GraphPanel)
-    [void](New-UTGraphCard -Key gpu  -Title 'GPU'         -Color '#CE9178' -Parent $sync.GraphPanel)
-    [void](New-UTGraphCard -Key disk -Title 'DISK ACTIVE' -Color '#DCDCAA' -Parent $sync.GraphPanel)
-    [void](New-UTGraphCard -Key net  -Title 'NETWORK'     -Color '#C586C0' -AutoScale -MinScale 64 -Parent $sync.GraphPanel)
+    # One warm accent across every graph: the readings are the only thing that should catch the eye.
+    $live = '#E8A33D'
+    [void](New-UTGraphCard -Key cpu  -Title 'CPU'         -Color $live -Parent $sync.GraphPanel)
+    [void](New-UTGraphCard -Key ram  -Title 'MEMORY'      -Color $live -Parent $sync.GraphPanel)
+    [void](New-UTGraphCard -Key gpu  -Title 'GPU'         -Color $live -Parent $sync.GraphPanel)
+    [void](New-UTGraphCard -Key disk -Title 'DISK ACTIVE' -Color $live -Parent $sync.GraphPanel)
+    [void](New-UTGraphCard -Key net  -Title 'NETWORK'     -Color $live -AutoScale -MinScale 64 -Parent $sync.GraphPanel)
     Initialize-UTTweaksTab
+    Initialize-UTSimpleTab
     Initialize-UTSystemTab
     Initialize-UTFortniteTab
     Initialize-UTNvProfileTab
@@ -4576,6 +4785,8 @@ function Initialize-UTUI {
     Initialize-UTStartupTab
     Initialize-UTDebloatTab
     Update-UTInfoBox
+    # Advanced first: the full tool is what a returning user expects, and Simple is one click away.
+    Set-UTMode -Mode 'Advanced'
     $buttons = @()
     foreach ($k in @($sync.Keys)) {
         if ($sync[$k] -is [System.Windows.Controls.Button]) {
@@ -4769,6 +4980,17 @@ Remove-UTBloatApps -Names ([string[]]$Arguments.Names) -AllUsers:([bool]$Argumen
                 $dlg = New-Object Microsoft.Win32.OpenFileDialog
                 $dlg.Filter = 'unknowntweaks selection (*.json)|*.json'
                 if ($dlg.ShowDialog($sync.form)) { Import-UTSelection -Path $dlg.FileName }
+            }
+            'BtnModeSimple'   { Set-UTMode -Mode 'Simple' }
+            'BtnModeAdvanced' { Set-UTMode -Mode 'Advanced' }
+            'BtnSimpleUndo'   { Invoke-UTButton -Name 'BtnUndoAll' }
+            'BtnSimpleOptimize' {
+                $game = [string]$sync.simpleGame
+                if (-not $game) { Write-UTLog 'Pick a game first' -Level Warn; return }
+                $steps = @(Get-UTSimplePlan -Game $game | Where-Object { $_.Applies })
+                $list = ($steps | ForEach-Object { ' - ' + $_.Text }) -join "`n"
+                if (-not (Confirm-UTAction -Title ('Optimize for ' + $sync.configs.simple.Games.$game.Content) -Message ("This will run {0} step(s):`n{1}`n`nA restore point is taken first and every tweak is recorded before it changes anything, so Undo everything puts it all back.`n`nGo ahead?" -f $steps.Count, $list))) { return }
+                [void](Start-UTUIJob -Kind 'simple' -Arguments @{ Game = $game } -Script 'Invoke-UTSimpleOptimize -Game ([string]$Arguments.Game)')
             }
             'BtnNvProfileApply' {
                 $sel = $sync.NvProfileList.SelectedItem
@@ -5083,6 +5305,7 @@ function Complete-UTJob {
         'fortnite'  { Update-UTFortniteStatus }
         'fnstatus'  { if ($sync.fnLiveStatus) { $sync.FnLiveStatusBox.Text = $sync.fnLiveStatus } }
         'nvprofile' { Update-UTNvProfileStatus }
+        'simple'    { Update-UTTweakLabels; Update-UTSimplePlan }
         'valorant'  { Update-UTValorantStatus }
         'stretched' { Update-UTStretchedStatus }
         'gameready' { Initialize-UTGameReadyList }
@@ -5119,6 +5342,12 @@ function Update-UTMetrics {
         $sync.GameDetailText.Text = ''
         if ($fg -and $fg.Process) { $sync.GameDetailText.Text = 'foreground: ' + $fg.Process }
     }
+    # The header strip is the same readings as the cards, kept visible in both modes.
+    if ($null -ne $Snap.CpuPercent) { $sync.HudCpu.Text = '{0:N0}%' -f $Snap.CpuPercent }
+    if ($null -ne $Snap.MemUsedPercent) { $sync.HudRam.Text = '{0:N0}%' -f $Snap.MemUsedPercent }
+    if ($null -ne $Snap.GpuPercent) { $sync.HudGpu.Text = '{0:N0}%' -f $Snap.GpuPercent } else { $sync.HudGpu.Text = 'n/a' }
+    if ($null -ne $Snap.InetMs) { $sync.HudPing.Text = '{0} ms' -f $Snap.InetMs }
+
     $gw = '--'; if ($null -ne $Snap.GatewayMs) { $gw = ('{0} ms' -f $Snap.GatewayMs) } elseif ($Snap.GatewayStatus -ne 'n/a') { $gw = 'no reply' }
     $inet = '--'; if ($null -ne $Snap.InetMs) { $inet = ('{0} ms' -f $Snap.InetMs) } elseif ($Snap.InetStatus -ne 'n/a') { $inet = 'no reply' }
     $sync.PingText.Text = ('router {0}   internet {1}' -f $gw, $inet)
@@ -6116,6 +6345,42 @@ $sync.configs.nvprofile = @'
         { "Name": "Anisotropic filtering setting", "Id": "0x101E61A9", "Value": "0x00000000", "Means": "1x (off)" },
         { "Name": "Texture filtering - Driver Controlled LOD Bias", "Id": "0x00638E8F", "Value": "0x00000000", "Means": "off, so the manual bias below is used" },
         { "Name": "Texture filtering - LOD Bias", "Id": "0x00738E8F", "Value": "0x00000018", "Means": "+3.0 (blurrier)" }
+      ]
+    }
+  }
+}
+'@ | ConvertFrom-Json
+
+$sync.configs.simple = @'
+{
+  "Games": {
+    "Fortnite": {
+      "Content": "FORTNITE",
+      "Order": 1,
+      "Steps": [
+        { "Kind": "restorepoint", "When": "always", "Text": "Create a restore point", "Detail": "so all of this can be rolled back in one step" },
+        { "Kind": "tweaks", "When": "always", "Text": "Apply the safe tweak preset", "Detail": "documented Windows settings with no meaningful downside; each one is snapshotted first" },
+        { "Kind": "fortnite-profile", "Value": "MaxFPS", "When": "always", "Text": "Set Fortnite to Performance Mode, everything low", "Detail": "only keys the in-game Video menu writes, merged into your config with a backup" },
+        { "Kind": "fortnite-args", "Value": "-NOSPLASH -high -d3d11", "When": "legacy-gpu", "Text": "Write the -high -d3d11 launch arguments", "Detail": "the legacy DX11 renderer, which suits this GPU better than DX12 Performance Mode" },
+        { "Kind": "fortnite-args", "Value": "-NOSPLASH", "When": "modern-gpu", "Text": "Write the -NOSPLASH launch argument", "Detail": "this GPU is happier on Epic's DX12 Performance Mode, so the DX11 switch is left off" },
+        { "Kind": "nvprofile", "Value": "Performance", "When": "nvidia", "Text": "Set the NVIDIA driver profile to Performance", "Detail": "power management, filtering and VSync; nothing that changes how the game looks" }
+      ]
+    },
+    "Valorant": {
+      "Content": "VALORANT",
+      "Order": 2,
+      "Steps": [
+        { "Kind": "restorepoint", "When": "always", "Text": "Create a restore point", "Detail": "so all of this can be rolled back in one step" },
+        { "Kind": "tweaks", "When": "always", "Text": "Apply the safe tweak preset", "Detail": "documented Windows settings with no meaningful downside; each one is snapshotted first" },
+        { "Kind": "valorant-profile", "Value": "MaxFPS", "When": "always", "Text": "Set VALORANT graphics to their lowest", "Detail": "every quality group down, Reflex On+Boost, VSync off, frame cap off; both settings files backed up first" }
+      ]
+    },
+    "Other": {
+      "Content": "ANY OTHER GAME",
+      "Order": 3,
+      "Steps": [
+        { "Kind": "restorepoint", "When": "always", "Text": "Create a restore point", "Detail": "so all of this can be rolled back in one step" },
+        { "Kind": "tweaks", "When": "always", "Text": "Apply the safe tweak preset", "Detail": "the Windows-side work, which is what helps every game; no per-game settings are touched" }
       ]
     }
   }
@@ -7317,6 +7582,7 @@ $inputXML = @'
     <SolidColorBrush x:Key="Red" Color="#F14C4C"/>
     <SolidColorBrush x:Key="Blue" Color="#569CD6"/>
     <SolidColorBrush x:Key="Purple" Color="#C586C0"/>
+    <SolidColorBrush x:Key="Live" Color="#E8A33D"/>
     <SolidColorBrush x:Key="ScrollTrack" Color="#1E1E1E"/>
     <SolidColorBrush x:Key="ScrollThumb" Color="#424242"/>
     <SolidColorBrush x:Key="ScrollThumbHover" Color="#4F4F4F"/>
@@ -7647,8 +7913,8 @@ $inputXML = @'
       <Setter Property="Padding" Value="8"/>
     </Style>
     <Style x:Key="SectionHeader" TargetType="TextBlock">
-      <Setter Property="Foreground" Value="{DynamicResource Blue}"/>
-      <Setter Property="FontSize" Value="13"/>
+      <Setter Property="Foreground" Value="{DynamicResource Fg}"/>
+      <Setter Property="FontSize" Value="12"/>
       <Setter Property="FontWeight" Value="Bold"/>
       <Setter Property="Margin" Value="8,16,0,4"/>
     </Style>
@@ -7663,6 +7929,74 @@ $inputXML = @'
       <Setter Property="TextWrapping" Value="Wrap"/>
       <Setter Property="Margin" Value="8,4,8,4"/>
     </Style>
+
+    <!-- HUD: grey carries the interface, the one warm accent is reserved for live readings. -->
+    <Style x:Key="HudLabel" TargetType="TextBlock">
+      <Setter Property="Foreground" Value="{DynamicResource FgDim}"/>
+      <Setter Property="FontSize" Value="11"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+      <Setter Property="Margin" Value="18,0,5,0"/>
+    </Style>
+    <Style x:Key="HudValue" TargetType="TextBlock">
+      <Setter Property="Foreground" Value="{DynamicResource Live}"/>
+      <Setter Property="FontSize" Value="12"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+      <Setter Property="MinWidth" Value="46"/>
+    </Style>
+    <Style x:Key="ModeButton" TargetType="Button">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Foreground" Value="{DynamicResource FgDim}"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Padding" Value="14,4"/>
+      <Setter Property="FontSize" Value="11.5"/>
+      <Setter Property="Margin" Value="0"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border Background="{TemplateBinding Background}" CornerRadius="3" Padding="{TemplateBinding Padding}">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style x:Key="GameTile" TargetType="Button">
+      <Setter Property="Background" Value="{DynamicResource Bg1}"/>
+      <Setter Property="Foreground" Value="{DynamicResource Fg}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Width" Value="176"/>
+      <Setter Property="Height" Value="74"/>
+      <Setter Property="Margin" Value="0,0,10,10"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="HorizontalContentAlignment" Value="Left"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="Bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="4" Padding="14,10">
+              <ContentPresenter HorizontalAlignment="Left" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Bg2}"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style x:Key="BigButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+      <Setter Property="Background" Value="{DynamicResource Live}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource Live}"/>
+      <Setter Property="Foreground" Value="#1E1E1E"/>
+      <Setter Property="FontWeight" Value="Bold"/>
+      <Setter Property="FontSize" Value="13"/>
+      <Setter Property="Padding" Value="26,9"/>
+      <Setter Property="Margin" Value="0"/>
+      <Setter Property="Cursor" Value="Hand"/>
+    </Style>
   </Window.Resources>
 
   <DockPanel>
@@ -7675,6 +8009,29 @@ $inputXML = @'
         <TextBlock Name="StatusText" Text="starting..." Foreground="White" VerticalAlignment="Center" Margin="10,0" FontSize="11"/>
       </DockPanel>
     </Border>
+    <Border DockPanel.Dock="Top" Background="#252526" BorderBrush="#3E3E42" BorderThickness="0,0,0,1" Padding="12,6">
+      <DockPanel>
+        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+          <Border Background="#1E1E1E" BorderBrush="#3E3E42" BorderThickness="1" CornerRadius="4" Padding="2">
+            <StackPanel Orientation="Horizontal">
+              <Button Name="BtnModeSimple" Content="SIMPLE" Style="{StaticResource ModeButton}" ToolTip="One click per game: the safe preset plus that game's settings, with a restore point first. Everything it does is listed before you press it."/>
+              <Button Name="BtnModeAdvanced" Content="ADVANCED" Style="{StaticResource ModeButton}" ToolTip="Every tab: the full tweak catalogue, the game tabs, network, startup, debloat."/>
+            </StackPanel>
+          </Border>
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+          <TextBlock Text="UNKNOWN UTILITY" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource Fg}" VerticalAlignment="Center"/>
+          <TextBlock Text="CPU" Style="{StaticResource HudLabel}" Margin="26,0,5,0"/>
+          <TextBlock Name="HudCpu" Text="--" Style="{StaticResource HudValue}"/>
+          <TextBlock Text="RAM" Style="{StaticResource HudLabel}"/>
+          <TextBlock Name="HudRam" Text="--" Style="{StaticResource HudValue}"/>
+          <TextBlock Text="GPU" Style="{StaticResource HudLabel}"/>
+          <TextBlock Name="HudGpu" Text="--" Style="{StaticResource HudValue}"/>
+          <TextBlock Text="PING" Style="{StaticResource HudLabel}"/>
+          <TextBlock Name="HudPing" Text="--" Style="{StaticResource HudValue}"/>
+        </StackPanel>
+      </DockPanel>
+    </Border>
     <Grid>
       <Grid.RowDefinitions>
         <RowDefinition Height="*"/>
@@ -7682,6 +8039,24 @@ $inputXML = @'
         <RowDefinition Height="200" MinHeight="80"/>
       </Grid.RowDefinitions>
       <Grid Grid.Row="0">
+      <Grid Name="SimpleRoot" Background="{DynamicResource Bg0}" Visibility="Collapsed">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+          <StackPanel Margin="28,22,28,26" MaxWidth="880" HorizontalAlignment="Left">
+            <TextBlock Text="PICK YOUR GAME" FontSize="11" Foreground="{DynamicResource FgDim}"/>
+            <WrapPanel Name="SimpleGamePanel" Margin="0,12,0,0"/>
+            <TextBlock Text="WHAT THIS WILL DO ON THIS PC" FontSize="11" Foreground="{DynamicResource FgDim}" Margin="0,18,0,0"/>
+            <Border Background="{DynamicResource Bg1}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="16,12" Margin="0,10,0,0">
+              <StackPanel Name="SimplePlanPanel"/>
+            </Border>
+            <StackPanel Orientation="Horizontal" Margin="0,20,0,0">
+              <Button Name="BtnSimpleOptimize" Content="OPTIMIZE" Style="{StaticResource BigButton}"/>
+              <Button Name="BtnSimpleUndo" Content="Undo everything" Style="{StaticResource DangerButton}" VerticalAlignment="Center" Margin="14,0,0,0" ToolTip="Reverts every tweak this tool has applied on this PC, from any session, using the values it recorded first."/>
+            </StackPanel>
+            <TextBlock Name="SimpleNoteText" Style="{StaticResource Dim}" Margin="0,14,0,0" Text=""/>
+          </StackPanel>
+        </ScrollViewer>
+      </Grid>
+      <Grid Name="AdvancedRoot">
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="330" MinWidth="240"/>
           <ColumnDefinition Width="4"/>
@@ -7691,17 +8066,11 @@ $inputXML = @'
         <Border Grid.Column="0" Background="#252526">
           <ScrollViewer VerticalScrollBarVisibility="Auto">
             <StackPanel Name="LeftPanel" Margin="0,0,0,8">
-              <Border Margin="8,10,8,0" Padding="8,4">
-                <StackPanel>
-                  <TextBlock Text="unknowntweaks" FontSize="18" FontWeight="Bold" Foreground="#4EC9B0"/>
-                  <TextBlock Text="free, open source, undoable" Foreground="#858585" FontSize="11"/>
-                </StackPanel>
-              </Border>
-              <StackPanel Name="GraphPanel"/>
+              <StackPanel Name="GraphPanel" Margin="0,8,0,0"/>
               <Border Style="{StaticResource GraphCard}">
                 <StackPanel>
                   <TextBlock Text="GAME" Foreground="#858585" FontSize="12"/>
-                  <TextBlock Name="GameText" Text="no fullscreen game detected" Foreground="#DCDCAA" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                  <TextBlock Name="GameText" Text="no game running" Foreground="{DynamicResource Live}" Margin="0,4,0,0" TextWrapping="Wrap"/>
                   <TextBlock Name="GameDetailText" Text="" Foreground="#858585" FontSize="11" Margin="0,2,0,0" TextWrapping="Wrap"/>
                   <TextBlock Name="PingText" Text="router --  internet --" Foreground="#D4D4D4" Margin="0,8,0,0"/>
                   <TextBlock Name="RegionText" Text="best Fortnite region: not measured yet" Foreground="#D4D4D4" Margin="0,2,0,0" TextWrapping="Wrap"/>
@@ -7732,7 +8101,7 @@ $inputXML = @'
                     <Button Name="BtnClearTweaks" Content="Clear"/>
                     <Button Name="BtnExportSel" Content="Export" ToolTip="Saves the ticked tweaks, the Fortnite and VALORANT profiles and the launch arguments to a small JSON file you can share. No machine facts, no snapshots."/>
                     <Button Name="BtnImportSel" Content="Import" ToolTip="Loads a selection file: ticks the boxes and picks the profiles. Nothing is applied until you press Apply selected."/>
-                    <CheckBox Name="ChkRestorePoint" Content="create a restore point first" IsChecked="True" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                    <CheckBox Name="ChkRestorePoint" Content="restore point first" IsChecked="True" VerticalAlignment="Center" Margin="8,0,0,0" ToolTip="Creates a System Restore point before the first change, so the whole batch can be rolled back from Windows even if something goes wrong outside this tool."/>
                   </StackPanel>
                 </DockPanel>
               </Border>
@@ -7984,6 +8353,7 @@ $inputXML = @'
             </DockPanel>
           </TabItem>
         </TabControl>
+      </Grid>
       </Grid>
 
       <GridSplitter Grid.Row="1" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>

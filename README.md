@@ -10,6 +10,19 @@ irm https://raw.githubusercontent.com/unknownaimer/unknownutility/main/unknowntw
 
 Open PowerShell (no admin needed, it asks for elevation itself), paste, press Enter.
 
+## Two modes
+
+The toggle sits in the header, and the window opens in **Advanced**.
+
+**Simple** is one click per game. Pick Fortnite, VALORANT or "any other game", read the plan it
+prints for *your* PC, press the button. It takes a restore point first, applies the safe tweak
+preset, and adds that game's settings - Fortnite gets Performance Mode plus the launch arguments
+that suit your GPU, VALORANT gets its graphics dropped to the floor. It never reaches past the safe
+tier: the risky tweaks cannot be applied from Simple mode at all. Every step is listed before you
+press anything, including the ones that will be skipped and why, and all of it is undoable.
+
+**Advanced** is everything below.
+
 ## What it does
 
 **Left panel**: Task-Manager-style graphs sampled once a second (CPU, memory, GPU busiest engine

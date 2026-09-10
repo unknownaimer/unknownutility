@@ -20,6 +20,7 @@
     <SolidColorBrush x:Key="Red" Color="#F14C4C"/>
     <SolidColorBrush x:Key="Blue" Color="#569CD6"/>
     <SolidColorBrush x:Key="Purple" Color="#C586C0"/>
+    <SolidColorBrush x:Key="Live" Color="#E8A33D"/>
     <SolidColorBrush x:Key="ScrollTrack" Color="#1E1E1E"/>
     <SolidColorBrush x:Key="ScrollThumb" Color="#424242"/>
     <SolidColorBrush x:Key="ScrollThumbHover" Color="#4F4F4F"/>
@@ -350,8 +351,8 @@
       <Setter Property="Padding" Value="8"/>
     </Style>
     <Style x:Key="SectionHeader" TargetType="TextBlock">
-      <Setter Property="Foreground" Value="{DynamicResource Blue}"/>
-      <Setter Property="FontSize" Value="13"/>
+      <Setter Property="Foreground" Value="{DynamicResource Fg}"/>
+      <Setter Property="FontSize" Value="12"/>
       <Setter Property="FontWeight" Value="Bold"/>
       <Setter Property="Margin" Value="8,16,0,4"/>
     </Style>
@@ -366,6 +367,74 @@
       <Setter Property="TextWrapping" Value="Wrap"/>
       <Setter Property="Margin" Value="8,4,8,4"/>
     </Style>
+
+    <!-- HUD: grey carries the interface, the one warm accent is reserved for live readings. -->
+    <Style x:Key="HudLabel" TargetType="TextBlock">
+      <Setter Property="Foreground" Value="{DynamicResource FgDim}"/>
+      <Setter Property="FontSize" Value="11"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+      <Setter Property="Margin" Value="18,0,5,0"/>
+    </Style>
+    <Style x:Key="HudValue" TargetType="TextBlock">
+      <Setter Property="Foreground" Value="{DynamicResource Live}"/>
+      <Setter Property="FontSize" Value="12"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+      <Setter Property="MinWidth" Value="46"/>
+    </Style>
+    <Style x:Key="ModeButton" TargetType="Button">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Foreground" Value="{DynamicResource FgDim}"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Padding" Value="14,4"/>
+      <Setter Property="FontSize" Value="11.5"/>
+      <Setter Property="Margin" Value="0"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border Background="{TemplateBinding Background}" CornerRadius="3" Padding="{TemplateBinding Padding}">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style x:Key="GameTile" TargetType="Button">
+      <Setter Property="Background" Value="{DynamicResource Bg1}"/>
+      <Setter Property="Foreground" Value="{DynamicResource Fg}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Width" Value="176"/>
+      <Setter Property="Height" Value="74"/>
+      <Setter Property="Margin" Value="0,0,10,10"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="HorizontalContentAlignment" Value="Left"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="Bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="4" Padding="14,10">
+              <ContentPresenter HorizontalAlignment="Left" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Bg2}"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style x:Key="BigButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+      <Setter Property="Background" Value="{DynamicResource Live}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource Live}"/>
+      <Setter Property="Foreground" Value="#1E1E1E"/>
+      <Setter Property="FontWeight" Value="Bold"/>
+      <Setter Property="FontSize" Value="13"/>
+      <Setter Property="Padding" Value="26,9"/>
+      <Setter Property="Margin" Value="0"/>
+      <Setter Property="Cursor" Value="Hand"/>
+    </Style>
   </Window.Resources>
 
   <DockPanel>
@@ -378,6 +447,29 @@
         <TextBlock Name="StatusText" Text="starting..." Foreground="White" VerticalAlignment="Center" Margin="10,0" FontSize="11"/>
       </DockPanel>
     </Border>
+    <Border DockPanel.Dock="Top" Background="#252526" BorderBrush="#3E3E42" BorderThickness="0,0,0,1" Padding="12,6">
+      <DockPanel>
+        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+          <Border Background="#1E1E1E" BorderBrush="#3E3E42" BorderThickness="1" CornerRadius="4" Padding="2">
+            <StackPanel Orientation="Horizontal">
+              <Button Name="BtnModeSimple" Content="SIMPLE" Style="{StaticResource ModeButton}" ToolTip="One click per game: the safe preset plus that game's settings, with a restore point first. Everything it does is listed before you press it."/>
+              <Button Name="BtnModeAdvanced" Content="ADVANCED" Style="{StaticResource ModeButton}" ToolTip="Every tab: the full tweak catalogue, the game tabs, network, startup, debloat."/>
+            </StackPanel>
+          </Border>
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+          <TextBlock Text="UNKNOWN UTILITY" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource Fg}" VerticalAlignment="Center"/>
+          <TextBlock Text="CPU" Style="{StaticResource HudLabel}" Margin="26,0,5,0"/>
+          <TextBlock Name="HudCpu" Text="--" Style="{StaticResource HudValue}"/>
+          <TextBlock Text="RAM" Style="{StaticResource HudLabel}"/>
+          <TextBlock Name="HudRam" Text="--" Style="{StaticResource HudValue}"/>
+          <TextBlock Text="GPU" Style="{StaticResource HudLabel}"/>
+          <TextBlock Name="HudGpu" Text="--" Style="{StaticResource HudValue}"/>
+          <TextBlock Text="PING" Style="{StaticResource HudLabel}"/>
+          <TextBlock Name="HudPing" Text="--" Style="{StaticResource HudValue}"/>
+        </StackPanel>
+      </DockPanel>
+    </Border>
     <Grid>
       <Grid.RowDefinitions>
         <RowDefinition Height="*"/>
@@ -385,6 +477,24 @@
         <RowDefinition Height="200" MinHeight="80"/>
       </Grid.RowDefinitions>
       <Grid Grid.Row="0">
+      <Grid Name="SimpleRoot" Background="{DynamicResource Bg0}" Visibility="Collapsed">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+          <StackPanel Margin="28,22,28,26" MaxWidth="880" HorizontalAlignment="Left">
+            <TextBlock Text="PICK YOUR GAME" FontSize="11" Foreground="{DynamicResource FgDim}"/>
+            <WrapPanel Name="SimpleGamePanel" Margin="0,12,0,0"/>
+            <TextBlock Text="WHAT THIS WILL DO ON THIS PC" FontSize="11" Foreground="{DynamicResource FgDim}" Margin="0,18,0,0"/>
+            <Border Background="{DynamicResource Bg1}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="16,12" Margin="0,10,0,0">
+              <StackPanel Name="SimplePlanPanel"/>
+            </Border>
+            <StackPanel Orientation="Horizontal" Margin="0,20,0,0">
+              <Button Name="BtnSimpleOptimize" Content="OPTIMIZE" Style="{StaticResource BigButton}"/>
+              <Button Name="BtnSimpleUndo" Content="Undo everything" Style="{StaticResource DangerButton}" VerticalAlignment="Center" Margin="14,0,0,0" ToolTip="Reverts every tweak this tool has applied on this PC, from any session, using the values it recorded first."/>
+            </StackPanel>
+            <TextBlock Name="SimpleNoteText" Style="{StaticResource Dim}" Margin="0,14,0,0" Text=""/>
+          </StackPanel>
+        </ScrollViewer>
+      </Grid>
+      <Grid Name="AdvancedRoot">
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="330" MinWidth="240"/>
           <ColumnDefinition Width="4"/>
@@ -394,17 +504,11 @@
         <Border Grid.Column="0" Background="#252526">
           <ScrollViewer VerticalScrollBarVisibility="Auto">
             <StackPanel Name="LeftPanel" Margin="0,0,0,8">
-              <Border Margin="8,10,8,0" Padding="8,4">
-                <StackPanel>
-                  <TextBlock Text="unknowntweaks" FontSize="18" FontWeight="Bold" Foreground="#4EC9B0"/>
-                  <TextBlock Text="free, open source, undoable" Foreground="#858585" FontSize="11"/>
-                </StackPanel>
-              </Border>
-              <StackPanel Name="GraphPanel"/>
+              <StackPanel Name="GraphPanel" Margin="0,8,0,0"/>
               <Border Style="{StaticResource GraphCard}">
                 <StackPanel>
                   <TextBlock Text="GAME" Foreground="#858585" FontSize="12"/>
-                  <TextBlock Name="GameText" Text="no fullscreen game detected" Foreground="#DCDCAA" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                  <TextBlock Name="GameText" Text="no game running" Foreground="{DynamicResource Live}" Margin="0,4,0,0" TextWrapping="Wrap"/>
                   <TextBlock Name="GameDetailText" Text="" Foreground="#858585" FontSize="11" Margin="0,2,0,0" TextWrapping="Wrap"/>
                   <TextBlock Name="PingText" Text="router --  internet --" Foreground="#D4D4D4" Margin="0,8,0,0"/>
                   <TextBlock Name="RegionText" Text="best Fortnite region: not measured yet" Foreground="#D4D4D4" Margin="0,2,0,0" TextWrapping="Wrap"/>
@@ -435,7 +539,7 @@
                     <Button Name="BtnClearTweaks" Content="Clear"/>
                     <Button Name="BtnExportSel" Content="Export" ToolTip="Saves the ticked tweaks, the Fortnite and VALORANT profiles and the launch arguments to a small JSON file you can share. No machine facts, no snapshots."/>
                     <Button Name="BtnImportSel" Content="Import" ToolTip="Loads a selection file: ticks the boxes and picks the profiles. Nothing is applied until you press Apply selected."/>
-                    <CheckBox Name="ChkRestorePoint" Content="create a restore point first" IsChecked="True" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                    <CheckBox Name="ChkRestorePoint" Content="restore point first" IsChecked="True" VerticalAlignment="Center" Margin="8,0,0,0" ToolTip="Creates a System Restore point before the first change, so the whole batch can be rolled back from Windows even if something goes wrong outside this tool."/>
                   </StackPanel>
                 </DockPanel>
               </Border>
@@ -687,6 +791,7 @@
             </DockPanel>
           </TabItem>
         </TabControl>
+      </Grid>
       </Grid>
 
       <GridSplitter Grid.Row="1" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>

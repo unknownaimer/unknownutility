@@ -1,0 +1,33 @@
+{
+  "Games": {
+    "Fortnite": {
+      "Content": "FORTNITE",
+      "Order": 1,
+      "Steps": [
+        { "Kind": "restorepoint", "When": "always", "Text": "Create a restore point", "Detail": "so all of this can be rolled back in one step" },
+        { "Kind": "tweaks", "When": "always", "Text": "Apply the safe tweak preset", "Detail": "documented Windows settings with no meaningful downside; each one is snapshotted first" },
+        { "Kind": "fortnite-profile", "Value": "MaxFPS", "When": "always", "Text": "Set Fortnite to Performance Mode, everything low", "Detail": "only keys the in-game Video menu writes, merged into your config with a backup" },
+        { "Kind": "fortnite-args", "Value": "-NOSPLASH -high -d3d11", "When": "legacy-gpu", "Text": "Write the -high -d3d11 launch arguments", "Detail": "the legacy DX11 renderer, which suits this GPU better than DX12 Performance Mode" },
+        { "Kind": "fortnite-args", "Value": "-NOSPLASH", "When": "modern-gpu", "Text": "Write the -NOSPLASH launch argument", "Detail": "this GPU is happier on Epic's DX12 Performance Mode, so the DX11 switch is left off" },
+        { "Kind": "nvprofile", "Value": "Performance", "When": "nvidia", "Text": "Set the NVIDIA driver profile to Performance", "Detail": "power management, filtering and VSync; nothing that changes how the game looks" }
+      ]
+    },
+    "Valorant": {
+      "Content": "VALORANT",
+      "Order": 2,
+      "Steps": [
+        { "Kind": "restorepoint", "When": "always", "Text": "Create a restore point", "Detail": "so all of this can be rolled back in one step" },
+        { "Kind": "tweaks", "When": "always", "Text": "Apply the safe tweak preset", "Detail": "documented Windows settings with no meaningful downside; each one is snapshotted first" },
+        { "Kind": "valorant-profile", "Value": "MaxFPS", "When": "always", "Text": "Set VALORANT graphics to their lowest", "Detail": "every quality group down, Reflex On+Boost, VSync off, frame cap off; both settings files backed up first" }
+      ]
+    },
+    "Other": {
+      "Content": "ANY OTHER GAME",
+      "Order": 3,
+      "Steps": [
+        { "Kind": "restorepoint", "When": "always", "Text": "Create a restore point", "Detail": "so all of this can be rolled back in one step" },
+        { "Kind": "tweaks", "When": "always", "Text": "Apply the safe tweak preset", "Detail": "the Windows-side work, which is what helps every game; no per-game settings are touched" }
+      ]
+    }
+  }
+}

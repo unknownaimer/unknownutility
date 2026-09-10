@@ -22,10 +22,10 @@ $sync.backupDir = Join-Path ([System.IO.Path]::GetTempPath()) ('ut-test-' + [gui
 $sync.configs = @{}
 $sync.form = $null
 $sync.status = ''
-foreach ($f in 'Write-UTLog', 'Set-UTRegistry', 'Set-UTIniValue', 'Save-UTBackup', 'Set-UTLaunchArgs', 'Invoke-UTTweaks', 'Get-UTStartupItems', 'Remove-UTAppxPackages', 'Measure-UTRegionPing', 'Test-UTDnsLatency', 'Test-UTBetaGate', 'Get-UTGameReady', 'Get-UTRunningGame', 'Invoke-UTBenchmark', 'Get-UTValorant', 'Set-UTNvProfile') {
+foreach ($f in 'Write-UTLog', 'Set-UTRegistry', 'Set-UTIniValue', 'Save-UTBackup', 'Set-UTLaunchArgs', 'Invoke-UTTweaks', 'Get-UTStartupItems', 'Remove-UTAppxPackages', 'Measure-UTRegionPing', 'Test-UTDnsLatency', 'Test-UTBetaGate', 'Get-UTGameReady', 'Get-UTRunningGame', 'Invoke-UTBenchmark', 'Get-UTValorant', 'Set-UTNvProfile', 'Invoke-UTSimple') {
     . (Join-Path $Root "functions/private/$f.ps1")
 }
-foreach ($j in 'gameservers', 'dns', 'tweaks', 'fortnite', 'debloat', 'games', 'gameready', 'valorant', 'stretched', 'nvprofile') {
+foreach ($j in 'gameservers', 'dns', 'tweaks', 'fortnite', 'debloat', 'games', 'gameready', 'valorant', 'stretched', 'nvprofile', 'simple') {
     $sync.configs[$j] = Get-Content -Raw (Join-Path $Root "config/$j.json") | ConvertFrom-Json
 }
 
@@ -131,6 +131,35 @@ $leak = @()
 $json = Get-Content -Raw (Join-Path $Root 'config/fortnite.json')
 foreach ($f in $forbidden) { if ($json.Contains($f) -and $f -ne 'r.Lumen.') { $leak += $f } }
 Assert ($leak.Count -eq 0) 'no engine cvar overrides in fortnite.json'
+
+Write-Host "simple mode"
+$sm = $sync.configs.simple
+$smKinds = @('restorepoint', 'tweaks', 'fortnite-profile', 'fortnite-args', 'valorant-profile', 'nvprofile')
+$smBad = @()
+foreach ($g in $sm.Games.PSObject.Properties) {
+    if (-not $g.Value.Content) { $smBad += "$($g.Name) content" }
+    foreach ($s in @($g.Value.Steps)) {
+        if ($smKinds -notcontains [string]$s.Kind) { $smBad += "$($g.Name) kind $($s.Kind)" }
+        if (-not $s.Text -or -not $s.Detail) { $smBad += "$($g.Name) $($s.Kind) undescribed" }
+    }
+    Assert (@($g.Value.Steps)[0].Kind -eq 'restorepoint') "$($g.Name) takes a restore point before anything else"
+}
+Assert ($smBad.Count -eq 0) ("every simple step is a known kind and is described" + $(if ($smBad) { ': ' + ($smBad -join ', ') } else { '' }))
+# A one-click mode must never reach past the safe tier: it is used by people who cannot judge the cost.
+$smIds = @($sync.configs.tweaks.PSObject.Properties | Where-Object { $_.Value.Tier -eq 'safe' -and $_.Value.Recommended } | ForEach-Object { $_.Name })
+Assert ($smIds.Count -gt 0 -and @($smIds | Where-Object { $sync.configs.tweaks.$_.Tier -ne 'safe' }).Count -eq 0) "simple mode's tweak step is the $($smIds.Count)-tweak safe preset and nothing else"
+# The DX11 argument must be chosen per GPU, not written blindly: it hurts modern cards.
+$sync.sysinfo = [pscustomobject]@{ GPUVendor = 'NVIDIA'; GPU = 'NVIDIA GeForce GTX 1650'; VramGB = 4 }
+$legacy = @(Get-UTSimplePlan -Game 'Fortnite' | Where-Object { $_.Kind -eq 'fortnite-args' -and $_.Applies })
+Assert ($legacy.Count -eq 1 -and $legacy[0].Value -match '-d3d11') "a GTX 1650 gets the DX11 arguments ($($legacy[0].Value))"
+$sync.sysinfo = [pscustomobject]@{ GPUVendor = 'NVIDIA'; GPU = 'NVIDIA GeForce RTX 4070'; VramGB = 12 }
+$modern = @(Get-UTSimplePlan -Game 'Fortnite' | Where-Object { $_.Kind -eq 'fortnite-args' -and $_.Applies })
+Assert ($modern.Count -eq 1 -and $modern[0].Value -notmatch '-d3d11') "an RTX 4070 is left on DX12 ($($modern[0].Value))"
+$sync.sysinfo = [pscustomobject]@{ GPUVendor = 'AMD'; GPU = 'AMD Radeon RX 7800 XT'; VramGB = 16 }
+$amd = @(Get-UTSimplePlan -Game 'Fortnite' | Where-Object { $_.Applies })
+Assert (@($amd | Where-Object { $_.Kind -eq 'nvprofile' }).Count -eq 0) 'an AMD card is not offered the NVIDIA driver profile'
+Assert (@($amd | Where-Object { $_.Kind -eq 'fortnite-args' }).Count -eq 1) 'exactly one launch-argument step ever applies'
+$sync.sysinfo = $null
 
 Write-Host "nvidia driver profile"
 $nv = $sync.configs.nvprofile

@@ -232,6 +232,15 @@ try {
     $grNever = @(Get-UTNeverKill)
     Assert (@($sync.gameReadyBoxes.Keys | Where-Object { $grNever -contains [string]$sync.gameReadyBoxes[$_].Tag }).Count -eq 0) 'no protected process has a GAME READY checkbox'
     Assert ($sync.RecommendPanel.Children.Count -gt 0) "the SYSTEM tab lists $($sync.RecommendPanel.Children.Count) recommendation lines for this PC"
+    Assert ($sync.mode -eq 'Advanced') "the window opens in Advanced mode (got $($sync.mode))"
+    Assert ($sync.AdvancedRoot.Visibility -eq 'Visible' -and $sync.SimpleRoot.Visibility -eq 'Collapsed') 'Advanced is the visible view at startup'
+    Assert ($sync.simpleTiles.Count -eq @($sync.configs.simple.Games.PSObject.Properties).Count) "a tile for each of the $($sync.simpleTiles.Count) Simple-mode games"
+    Assert ($sync.SimplePlanPanel.Children.Count -gt 0) "the Simple plan lists $($sync.SimplePlanPanel.Children.Count) lines for $($sync.simpleGame)"
+    Assert ($sync.BtnSimpleOptimize.Content -match 'OPTIMIZE') "the optimize button names the game ($($sync.BtnSimpleOptimize.Content))"
+    Set-UTMode -Mode 'Simple'
+    Assert ($sync.SimpleRoot.Visibility -eq 'Visible' -and $sync.AdvancedRoot.Visibility -eq 'Collapsed') 'the toggle switches to Simple'
+    Set-UTMode -Mode 'Advanced'
+    Assert ($sync.AdvancedRoot.Visibility -eq 'Visible') 'and back to Advanced'
     $startupItems = @(Get-UTStartupItems)
     Assert ($sync.startupBoxes.Count -eq $startupItems.Count) "a checkbox for each of the $($startupItems.Count) startup entries (got $($sync.startupBoxes.Count))"
     Assert ($null -eq $sync.StartupNote) 'STARTUP tab carries no explanatory blurb'
