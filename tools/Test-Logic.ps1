@@ -22,10 +22,10 @@ $sync.backupDir = Join-Path ([System.IO.Path]::GetTempPath()) ('ut-test-' + [gui
 $sync.configs = @{}
 $sync.form = $null
 $sync.status = ''
-foreach ($f in 'Write-UTLog', 'Set-UTRegistry', 'Set-UTIniValue', 'Save-UTBackup', 'Set-UTLaunchArgs', 'Invoke-UTTweaks', 'Get-UTStartupItems', 'Remove-UTAppxPackages', 'Measure-UTRegionPing', 'Test-UTDnsLatency', 'Test-UTBetaGate', 'Get-UTGameReady', 'Get-UTRunningGame', 'Invoke-UTBenchmark', 'Get-UTValorant') {
+foreach ($f in 'Write-UTLog', 'Set-UTRegistry', 'Set-UTIniValue', 'Save-UTBackup', 'Set-UTLaunchArgs', 'Invoke-UTTweaks', 'Get-UTStartupItems', 'Remove-UTAppxPackages', 'Measure-UTRegionPing', 'Test-UTDnsLatency', 'Test-UTBetaGate', 'Get-UTGameReady', 'Get-UTRunningGame', 'Invoke-UTBenchmark', 'Get-UTValorant', 'Set-UTNvProfile') {
     . (Join-Path $Root "functions/private/$f.ps1")
 }
-foreach ($j in 'gameservers', 'dns', 'tweaks', 'fortnite', 'debloat', 'games', 'gameready', 'valorant', 'stretched') {
+foreach ($j in 'gameservers', 'dns', 'tweaks', 'fortnite', 'debloat', 'games', 'gameready', 'valorant', 'stretched', 'nvprofile') {
     $sync.configs[$j] = Get-Content -Raw (Join-Path $Root "config/$j.json") | ConvertFrom-Json
 }
 
@@ -131,6 +131,32 @@ $leak = @()
 $json = Get-Content -Raw (Join-Path $Root 'config/fortnite.json')
 foreach ($f in $forbidden) { if ($json.Contains($f) -and $f -ne 'r.Lumen.') { $leak += $f } }
 Assert ($leak.Count -eq 0) 'no engine cvar overrides in fortnite.json'
+
+Write-Host "nvidia driver profile"
+$nv = $sync.configs.nvprofile
+Assert ($nv.Application -match '\.exe$') "the driver profile targets an executable ($($nv.Application))"
+$nvBad = @(); $nvIds = @{}
+foreach ($p in $nv.Presets.PSObject.Properties) {
+    if (-not $p.Value.Content -or -not $p.Value.Description) { $nvBad += "$($p.Name) text" }
+    foreach ($s in @($p.Value.Settings)) {
+        if ([string]$s.Id -notmatch '^0x[0-9A-Fa-f]{8}$') { $nvBad += "$($p.Name) id $($s.Id)" }
+        if ([string]$s.Value -notmatch '^0x[0-9A-Fa-f]{8}$') { $nvBad += "$($p.Name) value $($s.Value)" }
+        if (-not $s.Name -or -not $s.Means) { $nvBad += "$($p.Name) $($s.Id) undescribed" }
+        $nvIds[[string]$s.Id] = $true
+    }
+}
+Assert ($nvBad.Count -eq 0) ("every driver setting is a named 32-bit id and value" + $(if ($nvBad) { ': ' + ($nvBad -join ', ') } else { '' }))
+# Every id must be one NVIDIA publishes in NvApiDriverSettings.h; a typo here writes a stranger's driver.
+$known = @('0x1057EB71', '0x00CE2691', '0x00E73211', '0x0084CD70', '0x002ECAF2', '0x00A879CF', '0x007BA09E', '0x10D2BB16', '0x101E61A9', '0x00638E8F', '0x00738E8F')
+$unknownIds = @($nvIds.Keys | Where-Object { $known -notcontains $_ })
+Assert ($unknownIds.Count -eq 0) ("every id is one from NVIDIA's published header" + $(if ($unknownIds) { ': ' + ($unknownIds -join ', ') } else { '' }))
+$lod = @($nv.Presets.Potato.Settings | Where-Object { $_.Id -eq '0x00738E8F' })
+Assert ($lod.Count -eq 1 -and [Convert]::ToUInt32($lod[0].Value, 16) -gt 0 -and [Convert]::ToUInt32($lod[0].Value, 16) -le 128) 'the LOD bias is positive (blurrier), never negative'
+$perf = @($nv.Presets.Performance.Settings | Where-Object { $_.Id -eq '0x00738E8F' -or $_.Id -eq '0x101E61A9' })
+Assert ($perf.Count -eq 0) 'the Performance preset changes nothing visual'
+$nvParsed = Get-UTNvProfileIds -PresetName 'Potato'
+Assert ($nvParsed.Ids.Count -eq $nvParsed.Values.Count -and $nvParsed.Ids.Count -eq @($nv.Presets.Potato.Settings).Count) "Potato parses to $($nvParsed.Ids.Count) id/value pairs"
+Assert ($nvParsed.Ids[0] -is [uint32]) 'ids parse as unsigned 32-bit'
 
 Write-Host "valorant profiles"
 $va = $sync.configs.valorant

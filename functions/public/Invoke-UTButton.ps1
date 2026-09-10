@@ -176,6 +176,15 @@ Remove-UTBloatApps -Names ([string[]]$Arguments.Names) -AllUsers:([bool]$Argumen
                 $dlg.Filter = 'unknowntweaks selection (*.json)|*.json'
                 if ($dlg.ShowDialog($sync.form)) { Import-UTSelection -Path $dlg.FileName }
             }
+            'BtnNvProfileApply' {
+                $sel = $sync.NvProfileList.SelectedItem
+                if (-not $sel) { Write-UTLog 'Select a driver preset first' -Level Warn; return }
+                $name = [string]$sel.Tag
+                if ($name -eq 'Potato' -and -not (Confirm-UTAction -Title 'Potato driver profile' -Message "This forces anisotropic filtering off and a +3.0 texture LOD bias in the NVIDIA driver profile for Fortnite. Textures will look blurry, which is the point.`n`nThe driver only applies LOD bias on DirectX 11, so tick the -high -d3d11 launch argument too or nothing will change. Restore driver defaults undoes all of it.`n`nApply it?")) { return }
+                [void](Start-UTUIJob -Kind 'nvprofile' -Arguments @{ Preset = $name } -Script 'Set-UTNvProfile -PresetName ([string]$Arguments.Preset)')
+            }
+            'BtnNvProfileRestore' { [void](Start-UTUIJob -Kind 'nvprofile' -Script 'Restore-UTNvProfile') }
+            'BtnNvProfileRefresh' { Update-UTNvProfileStatus }
             'BtnFnLiveStatus' {
                 if (Start-UTUIJob -Kind 'fnstatus' -Script 'Get-UTFortniteStatus | Out-Null') { $sync.FnLiveStatusBox.Text = 'asking status.epicgames.com...' }
             }

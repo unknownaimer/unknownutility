@@ -118,6 +118,7 @@ try {
     Assert ($null -ne ('UT.NativeV1.PdhQuery' -as [type])) 'UT.NativeV1.PdhQuery type is available'
     Assert ([UT.NativeV1.Display]::StructSizes() -eq '72,64') "CCD structs are 72 and 64 bytes (got $([UT.NativeV1.Display]::StructSizes()))"
     Assert ([UT.NativeV1.NvApi]::StructSizes() -eq '32,96,144') "NvAPI structs are 32, 96 and 144 bytes (got $([UT.NativeV1.NvApi]::StructSizes()))"
+    Assert ([UT.NativeV1.NvApi]::DrsSizes() -eq '4116,12296,12328') "NvAPI DRS profile/application/setting sizes are 4116, 12296, 12328 (got $([UT.NativeV1.NvApi]::DrsSizes()))"
     $curMode = [UT.NativeV1.Display]::GetCurrent()
     Assert ($curMode.Width -gt 0 -and $curMode.Height -gt 0) "current display mode $($curMode.Width)x$($curMode.Height)@$($curMode.Hz)"
     Assert (@([UT.NativeV1.Display]::EnumModes()).Count -gt 3) "$(@([UT.NativeV1.Display]::EnumModes()).Count) display modes enumerated"

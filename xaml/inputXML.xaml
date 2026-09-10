@@ -491,6 +491,15 @@
                   <Button Name="BtnFnProbe" Content="Probe launcher key"/>
                   <Button Name="BtnFnProbeDone" Content="Finish probe"/>
                 </StackPanel>
+                <TextBlock Text="NVIDIA driver profile (experimental)" Style="{StaticResource SectionHeader}" ToolTip="Writes into the driver's own settings database through NVAPI - the same one NVIDIA Control Panel and Profile Inspector write - so nothing is downloaded and no third-party tool runs. Only the settings listed in the preset are touched, and Restore puts every one of them back to the driver default. No game file is changed and nothing is injected. Needs an NVIDIA GPU; AMD and Intel expose their own equivalents in their control panels."/>
+                <TextBlock Name="NvProfileStatusText" Style="{StaticResource Body}" Text="reading driver profile..."/>
+                <ListBox Name="NvProfileList" Margin="8,4,8,4" Height="52"/>
+                <TextBlock Name="NvProfileDesc" Style="{StaticResource Dim}" Text=""/>
+                <StackPanel Orientation="Horizontal" Margin="8,6,0,0">
+                  <Button Name="BtnNvProfileApply" Content="Apply driver profile" Style="{StaticResource AccentButton}" ToolTip="Restart Fortnite afterwards for the driver to pick it up. The Potato preset's LOD bias only applies on DirectX 11, so tick the -high -d3d11 launch argument above as well or it will do nothing."/>
+                  <Button Name="BtnNvProfileRestore" Content="Restore driver defaults" ToolTip="Puts every setting this tool can write back to the NVIDIA default for Fortnite. Anything you set yourself in NVIDIA Control Panel for other applications is untouched."/>
+                  <Button Name="BtnNvProfileRefresh" Content="Refresh"/>
+                </StackPanel>
                 <TextBlock Text="Live status (Epic)" Style="{StaticResource SectionHeader}"/>
                 <StackPanel Orientation="Horizontal" Margin="8,4,0,4">
                   <Button Name="BtnFnLiveStatus" Content="Check Epic status" ToolTip="Asks status.epicgames.com through its public API: every Fortnite service, open incidents with Epic's latest update, and scheduled maintenance. So you know whether a problem is on Epic's side before you touch anything. The known gameplay bugs list is a web page; the result links it."/>

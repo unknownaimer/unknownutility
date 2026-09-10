@@ -90,8 +90,19 @@ The reversibility is enforced, not just promised:
 DX12, Latency only) written as a key-level merge with a backup, plus optional hidden keys, lock and
 unlock of the file, shader cache clearing, and **launch arguments written into the Epic Games
 Launcher's own settings file** (the launcher is closed and restarted for that). Only arguments the
-Unreal engine actually parses on a client are offered, including `-d3d11` for the legacy DX11
+Unreal engine actually parses on a client are offered, including `-high -d3d11` for the legacy DX11
 Performance Mode renderer; the placebo ones are in the table further down, with the reason.
+
+It also writes an **NVIDIA driver profile** for Fortnite through NVAPI - the same settings database
+NVIDIA Control Panel and Profile Inspector write, called directly, so no third-party tool is
+downloaded or run. **Performance** sets power management to maximum, texture filtering to high
+performance, VSync off and one pre-rendered frame, and changes nothing about how the game looks.
+**Potato** (experimental) adds 1x anisotropic filtering and a +3.0 texture LOD bias, which is what
+makes it look like a potato. One honest caveat the tutorials skip: the driver only applies LOD bias
+on DirectX 11 and older - on DX12 the game owns sampler state and it does nothing - so Potato needs
+the `-high -d3d11` argument to have any effect at all. A negative LOD bias sharpens distant textures
+and is the version competitive rules argue about, so it is not offered. **Restore driver defaults**
+puts every setting back.
 
 **NETWORK tab**: pings Epic's eight regional datacenter hosts (the same ones the in-game region list
 uses) with jitter and loss, benchmarks public DNS resolvers with real uncached queries and a real
@@ -158,7 +169,7 @@ Most paid "Fortnite regedit packs" are a mix of placebo and harm. These are left
 | Disable Defender / Windows Update / IPv6 | Security, driver and anti-cheat update loss, Xbox networking breakage. Excluded. |
 | Page file off | Commit-limit crashes and stutter. Excluded. |
 | Engine.ini / Scalability.ini fog and foliage cvars | Fortnite has ignored these since 2017, and FNCS rule 8.2.1 treats client modification as cheating. Never written. |
-| `-USEALLAVAILABLECORES`, `-lanplay`, `-limitclientticks`, `-high`, `-malloc=system` | Placebo on a client (verified in the engine source); `-NOTEXTURESTREAMING` is actively harmful. |
+| `-USEALLAVAILABLECORES`, `-lanplay`, `-limitclientticks`, `-malloc=system` | Placebo on a client (verified in the engine source); `-NOTEXTURESTREAMING` is actively harmful. `-high` is also a no-op on Unreal, but it rides along with the DX11 option because that is the pairing the guides use and it costs nothing. |
 
 The rest of this table came out of a line-by-line read of a paid tweaking panel's command list on
 2026-09-06. Four things in it were worth taking (see [docs/DECISIONS.md](docs/DECISIONS.md) s12);

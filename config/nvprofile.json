@@ -1,0 +1,36 @@
+{
+  "Application": "FortniteClient-Win64-Shipping.exe",
+  "ProfileName": "Fortnite",
+  "Presets": {
+    "Performance": {
+      "Content": "Performance (no visual change)",
+      "Description": "The driver-side settings that cost nothing to look at: the GPU stays at its performance clocks instead of drifting down, texture filtering optimisations on, VSync forced off, and one pre-rendered frame. Nothing here blurs anything. These apply on DirectX 11 and 12 except the pre-rendered frame limit, which DirectX 12 leaves to the game.",
+      "Settings": [
+        { "Name": "Power management mode", "Id": "0x1057EB71", "Value": "0x00000001", "Means": "prefer maximum performance" },
+        { "Name": "Texture filtering - Quality", "Id": "0x00CE2691", "Value": "0x00000014", "Means": "high performance" },
+        { "Name": "Texture filtering - Anisotropic sample optimization", "Id": "0x00E73211", "Value": "0x00000001", "Means": "on" },
+        { "Name": "Texture filtering - Anisotropic filter optimization", "Id": "0x0084CD70", "Value": "0x00000001", "Means": "on" },
+        { "Name": "Texture filtering - Trilinear optimization", "Id": "0x002ECAF2", "Value": "0x00000001", "Means": "on" },
+        { "Name": "Vertical Sync", "Id": "0x00A879CF", "Value": "0x08416747", "Means": "force off" },
+        { "Name": "Maximum pre-rendered frames", "Id": "0x007BA09E", "Value": "0x00000001", "Means": "1" }
+      ]
+    },
+    "Potato": {
+      "Content": "Potato (blurry textures, DirectX 11 only)",
+      "Description": "EXPERIMENTAL. Everything in Performance, plus anisotropic filtering forced to its lowest and a positive texture LOD bias of +3.0, which is what makes textures look like a potato. The driver only applies LOD bias on DirectX 11 and older: on DirectX 12 the game owns sampler state and this does nothing at all, so pair it with the -high -d3d11 launch argument or you will see no difference. The bias is deliberately positive (blurrier). A negative bias sharpens distant textures and is the version that gets argued about in competitive rules, so it is not offered.",
+      "Settings": [
+        { "Name": "Power management mode", "Id": "0x1057EB71", "Value": "0x00000001", "Means": "prefer maximum performance" },
+        { "Name": "Texture filtering - Quality", "Id": "0x00CE2691", "Value": "0x00000014", "Means": "high performance" },
+        { "Name": "Texture filtering - Anisotropic sample optimization", "Id": "0x00E73211", "Value": "0x00000001", "Means": "on" },
+        { "Name": "Texture filtering - Anisotropic filter optimization", "Id": "0x0084CD70", "Value": "0x00000001", "Means": "on" },
+        { "Name": "Texture filtering - Trilinear optimization", "Id": "0x002ECAF2", "Value": "0x00000001", "Means": "on" },
+        { "Name": "Vertical Sync", "Id": "0x00A879CF", "Value": "0x08416747", "Means": "force off" },
+        { "Name": "Maximum pre-rendered frames", "Id": "0x007BA09E", "Value": "0x00000001", "Means": "1" },
+        { "Name": "Anisotropic filtering mode", "Id": "0x10D2BB16", "Value": "0x00000001", "Means": "user defined" },
+        { "Name": "Anisotropic filtering setting", "Id": "0x101E61A9", "Value": "0x00000000", "Means": "1x (off)" },
+        { "Name": "Texture filtering - Driver Controlled LOD Bias", "Id": "0x00638E8F", "Value": "0x00000000", "Means": "off, so the manual bias below is used" },
+        { "Name": "Texture filtering - LOD Bias", "Id": "0x00738E8F", "Value": "0x00000018", "Means": "+3.0 (blurrier)" }
+      ]
+    }
+  }
+}

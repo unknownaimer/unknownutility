@@ -353,6 +353,7 @@ function Initialize-UTUI {
     Initialize-UTTweaksTab
     Initialize-UTSystemTab
     Initialize-UTFortniteTab
+    Initialize-UTNvProfileTab
     Initialize-UTValorantTab
     Initialize-UTStretchedTab
     Initialize-UTGameReadyTab

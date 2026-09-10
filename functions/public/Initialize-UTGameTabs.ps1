@@ -1,3 +1,33 @@
+function Initialize-UTNvProfileTab {
+    foreach ($p in $sync.configs.nvprofile.Presets.PSObject.Properties) {
+        $item = New-Object System.Windows.Controls.ListBoxItem
+        $item.Content = [string]$p.Value.Content
+        $item.Tag = $p.Name
+        [void]$sync.NvProfileList.Items.Add($item)
+    }
+    $sync.NvProfileList.Add_SelectionChanged({
+        try {
+            $sel = $sync.NvProfileList.SelectedItem
+            if ($sel) { $sync.NvProfileDesc.Text = [string]$sync.configs.nvprofile.Presets.($sel.Tag).Description }
+            Update-UTNvProfileStatus
+        } catch { }
+    })
+    $sync.NvProfileList.SelectedIndex = 0
+    Update-UTNvProfileStatus
+}
+
+function Update-UTNvProfileStatus {
+    try {
+        $preset = 'Potato'
+        if ($sync.NvProfileList.SelectedItem) { $preset = [string]$sync.NvProfileList.SelectedItem.Tag }
+        $s = Get-UTNvProfileState -PresetName $preset
+        if (-not $s.Available) { $sync.NvProfileStatusText.Text = 'no NVIDIA driver on this PC: AMD and Intel have their own control panels for these settings'; return }
+        $head = '{0}: {1} of {2} setting(s) already match {3}' -f $s.Application, $s.Matching, $s.Total, $preset
+        if ($s.Total -eq 0) { $head = '{0}: the driver has no profile entry for it yet' -f $s.Application }
+        $sync.NvProfileStatusText.Text = (@($head) + $s.Lines) -join "`r`n"
+    } catch { $sync.NvProfileStatusText.Text = 'driver profile unavailable: ' + $_.Exception.Message }
+}
+
 function Initialize-UTValorantTab {
     foreach ($p in $sync.configs.valorant.Profiles.PSObject.Properties) {
         $item = New-Object System.Windows.Controls.ListBoxItem

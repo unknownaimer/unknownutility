@@ -434,9 +434,12 @@ here is one GTX 1650, and Epic's note that DX12 Performance Mode "works best wit
 with up-to-date driver support" is the honest counterweight for RTX owners. (H for "it works on
 42.10"; M for who it is best for.)
 
-**Not shipped:** `-high`, which was on the same command line. It stays on the placebo list for the
-reason already there (a Source-engine switch Unreal never parses). Nothing in the log responds to
-it. Anyone who wants it anyway can type it in the "extra" box, which is what that box is for.
+**`-high`**, which was on the same command line, is a Source-engine switch Unreal never parses;
+nothing in the log responds to it, and it was left off at first. **Changed 2026-09-10** at the
+owner's direction: the option now writes `-high -d3d11`, because that is the pairing every community
+guide uses and an unknown switch costs nothing - Windows ignores it, the engine ignores it. The
+placebo table still says plainly that `-high` on its own does nothing, so the shipped option and the
+claim agree rather than contradict.
 
 **Also corrected:** the `FSOGlobalOff` description no longer says Fortnite "cannot" be DX11; it
 now says the tweak applies to a Fortnite launched with `-d3d11`.
@@ -581,3 +584,65 @@ build does not have are named and skipped rather than silently dropped.
 - Microsoft, SetDisplayConfig and the CCD API: <https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setdisplayconfig>
 - Windows critical processes that must never be ended, cross-checked across Microsoft guidance and community references.
 - Riot Games support on editing VALORANT's configuration files; Epic's status API and Fortnite live-issues page.
+
+## 15. The NVIDIA driver profile, and `-high -d3d11` (2026-09-10)
+
+Asked for after a "potato graphics" tutorial that drives NVIDIA Profile Inspector by hand. Shipped
+as a driver-profile feature that needs no third-party tool, because Profile Inspector is only a UI
+over an API this project can call directly.
+
+### Doing it without Profile Inspector
+
+Profile Inspector writes the **driver settings repository** through NVAPI's DRS functions - the same
+database NVIDIA Control Panel writes. Those functions are public in NVIDIA's own SDK, so the tool
+calls them itself: `NvAPI_DRS_CreateSession` / `LoadSettings` / `FindApplicationByName` /
+`SetSetting` / `SaveSettings`, with `NvAPI_DRS_RestoreProfileDefaultSetting` for undo. Nothing is
+downloaded, no third-party binary runs, no game file changes and nothing is injected. Every setting
+id is one NVIDIA publishes in `NvApiDriverSettings.h`, and a test asserts that the ids in
+`config/nvprofile.json` are all from that published set, so a careless config edit cannot write an
+arbitrary value into a stranger's driver.
+
+**A layout trap worth recording.** `NVDRS_SETTING_V1` exists in two shapes in the wild: the original
+has 4-byte-aligned unions (4100 bytes each, struct 12320), and a later revision adds an `NvU64`
+member that pushes them to 8-byte alignment (4104 each, struct 12328) and moves the current value
+four bytes along. The first implementation computed 12328 from the current header and the driver on
+this machine answered `NVAPI_INCOMPATIBLE_STRUCT_VERSION`. Which one a given driver wants is not
+discoverable up front, so the setting buffer is now built by offset and both layouts are tried, the
+working one remembered. This driver (32.0.15.9159) wants 12320. Everything before the unions is
+identical in both, which is why only the value offset had to move.
+
+### What the presets contain
+
+Two, both scoped to `FortniteClient-Win64-Shipping.exe` only:
+
+* **Performance** - power management "prefer maximum performance", texture filtering quality "high
+  performance", the three filtering optimisations on, VSync forced off, one pre-rendered frame.
+  Nothing that changes how the game looks.
+* **Potato** - all of the above plus anisotropic filtering forced to 1x and a texture LOD bias of
+  **+3.0**, which is what actually produces the blurry look.
+
+**The honest caveat, which the tutorials skip:** the NVIDIA driver only applies LOD bias on
+DirectX 11 and older. On DirectX 12 and Vulkan the application owns sampler state and the driver
+override does nothing at all. Fortnite's default renderer is DX12, so Potato is inert unless the
+game is launched on the D3D11 RHI. That is why the preset's description says to pair it with the
+`-high -d3d11` launch argument, and why the two requests that arrived together are really one
+feature. (H for the API and the DX12 limitation; M for how much any of it is worth in FPS.)
+
+**Deliberately not offered: negative LOD bias.** A positive bias blurs, which is the point and is a
+visual downgrade nobody can call an advantage. A negative bias sharpens distant textures and is the
+version that gets argued about in competitive rulesets. A test asserts the shipped bias is positive.
+
+Verified live on this machine (GTX 1650, driver 32.0.15.9159): read the profile (5 of 11 settings
+already matched Potato, because NVIDIA's own predefined Fortnite profile sets most of them), applied
+Potato (11 of 11), restored (back to 5 of 11, every value at its pre-apply state). The status line
+reports "how many match the selected preset" rather than "how many differ from the driver default",
+because NVIDIA ships that profile pre-populated and the default-based reading told the user nothing.
+
+### `-high -d3d11`
+
+The DX11 launch option now writes `-high -d3d11` rather than `-d3d11`. `-high` is a Source-engine
+switch that Unreal never parses, so it sets no priority - the DX11 half is what does the work - but
+it is the pairing every community guide uses, an unknown switch costs nothing (Windows ignores it,
+the engine ignores it), and it is what the owner asked for. The placebo table still states plainly
+that `-high` on its own does nothing, so the shipped option and the documentation agree instead of
+contradicting each other. See s13 for the evidence that `-d3d11` still works on client 42.10.

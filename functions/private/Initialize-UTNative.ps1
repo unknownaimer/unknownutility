@@ -332,6 +332,154 @@ namespace UT.NativeV1 {
       if (rc != 0) return "SaveCustomDisplay: " + Err(rc);
       return rv == 0 ? "ok" : "ok (revert of the trial mode reported " + Err(rv) + ")";
     }
+    // ---- driver settings repository: the database NVIDIA Control Panel and Profile Inspector write ----
+    [StructLayout(LayoutKind.Sequential, Pack = 4)] public struct DRS_PROFILE {
+      public uint version;
+      [MarshalAs(UnmanagedType.ByValArray, SizeConst = 2048)] public ushort[] profileName;
+      public uint gpuSupport, isPredefined, numOfApps, numOfSettings;
+    }
+    [StructLayout(LayoutKind.Sequential, Pack = 4)] public struct DRS_APPLICATION {
+      public uint version, isPredefined;
+      [MarshalAs(UnmanagedType.ByValArray, SizeConst = 2048)] public ushort[] appName;
+      [MarshalAs(UnmanagedType.ByValArray, SizeConst = 2048)] public ushort[] userFriendlyName;
+      [MarshalAs(UnmanagedType.ByValArray, SizeConst = 2048)] public ushort[] launcher;
+    }
+    // NVDRS_SETTING_V1 exists in two shapes in the wild: the original unions are 4-byte aligned
+    // (4100 bytes each, struct 12320) and the later ones carry an NvU64 member that pushes them to
+    // 8-byte alignment (4104 each, struct 12328), moving the current value by four bytes. Which one a
+    // driver accepts is not discoverable up front, so the setting buffer is built by offset and both
+    // are tried; the one that works is remembered. Everything before the unions is identical.
+    struct SettingLayout { public int Size; public int CurrentValue; public int IsPredefined; }
+    static readonly SettingLayout[] SettingLayouts = new SettingLayout[] {
+      new SettingLayout { Size = 12328, CurrentValue = 8224, IsPredefined = 4112 },
+      new SettingLayout { Size = 12320, CurrentValue = 8220, IsPredefined = 4112 }
+    };
+    static int settingLayout = -1;
+    const int OFF_SETTING_ID = 4100, OFF_SETTING_TYPE = 4104, OFF_SETTING_LOCATION = 4108;
+    static IntPtr NewSettingBuffer(SettingLayout l, uint id) {
+      IntPtr buf = Marshal.AllocHGlobal(l.Size);
+      for (int i = 0; i < l.Size; i += 4) Marshal.WriteInt32(buf, i, 0);
+      Marshal.WriteInt32(buf, 0, (int)((uint)l.Size | (1u << 16)));
+      Marshal.WriteInt32(buf, OFF_SETTING_ID, (int)id);
+      Marshal.WriteInt32(buf, OFF_SETTING_TYPE, 0);
+      Marshal.WriteInt32(buf, OFF_SETTING_LOCATION, 0);
+      return buf;
+    }
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int DrsOpenFn(out IntPtr session);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int DrsSessionFn(IntPtr session);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int DrsFindAppFn(IntPtr session, ushort[] appName, out IntPtr profile, ref DRS_APPLICATION app);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int DrsCreateProfileFn(IntPtr session, ref DRS_PROFILE profile, out IntPtr handle);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int DrsCreateAppFn(IntPtr session, IntPtr profile, ref DRS_APPLICATION app);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int DrsSettingFn(IntPtr session, IntPtr profile, IntPtr setting);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int DrsGetSettingFn(IntPtr session, IntPtr profile, uint id, IntPtr setting);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int DrsRestoreFn(IntPtr session, IntPtr profile, uint id);
+    const uint ID_DrsCreateSession = 0x0694D52E, ID_DrsDestroySession = 0xDAD9CFF8, ID_DrsLoadSettings = 0x375DBD6B,
+               ID_DrsSaveSettings = 0xFCBC7E14, ID_DrsCreateProfile = 0xCC176068, ID_DrsFindApp = 0xEEE566B2,
+               ID_DrsCreateApp = 0x4347A9DE, ID_DrsSetSetting = 0x577DD202, ID_DrsGetSetting = 0x73BF8338,
+               ID_DrsRestoreSetting = 0x53F0381E;
+    static ushort[] Wide(string s) {
+      ushort[] a = new ushort[2048];
+      if (s != null) for (int i = 0; i < s.Length && i < 2047; i++) a[i] = s[i];
+      return a;
+    }
+    static uint Ver(Type t, int v) { return (uint)(Marshal.SizeOf(t) | (v << 16)); }
+    public static string DrsSizes() {
+      return Marshal.SizeOf(typeof(DRS_PROFILE)) + "," + Marshal.SizeOf(typeof(DRS_APPLICATION)) + "," + SettingLayouts[0].Size;
+    }
+    public static int DrsLayout() { return settingLayout; }
+    // Finds the profile that owns this executable, creating one only when the driver has none.
+    static int OpenAppProfile(IntPtr session, string exe, string profileName, bool create, out IntPtr profile) {
+      DRS_APPLICATION app = new DRS_APPLICATION();
+      app.version = Ver(typeof(DRS_APPLICATION), 1);
+      app.appName = Wide(exe); app.userFriendlyName = Wide(exe); app.launcher = Wide("");
+      int rc = Fn<DrsFindAppFn>(ID_DrsFindApp)(session, Wide(exe), out profile, ref app);
+      if (rc == 0 || !create) return rc;
+      DRS_PROFILE p = new DRS_PROFILE();
+      p.version = Ver(typeof(DRS_PROFILE), 1); p.profileName = Wide(profileName); p.gpuSupport = 1;
+      rc = Fn<DrsCreateProfileFn>(ID_DrsCreateProfile)(session, ref p, out profile);
+      if (rc != 0) return rc;
+      DRS_APPLICATION na = new DRS_APPLICATION();
+      na.version = Ver(typeof(DRS_APPLICATION), 1); na.isPredefined = 0;
+      na.appName = Wide(exe); na.userFriendlyName = Wide(exe); na.launcher = Wide("");
+      return Fn<DrsCreateAppFn>(ID_DrsCreateApp)(session, profile, ref na);
+    }
+    public static string DrsApply(string exe, string profileName, uint[] ids, uint[] values) {
+      if (ids.Length != values.Length) return "id and value counts differ";
+      int rc = Fn<InitializeFn>(ID_Initialize)(); if (rc != 0) return Err(rc);
+      IntPtr session;
+      rc = Fn<DrsOpenFn>(ID_DrsCreateSession)(out session); if (rc != 0) return "CreateSession: " + Err(rc);
+      try {
+        rc = Fn<DrsSessionFn>(ID_DrsLoadSettings)(session); if (rc != 0) return "LoadSettings: " + Err(rc);
+        IntPtr profile;
+        rc = OpenAppProfile(session, exe, profileName, true, out profile);
+        if (rc != 0) return "profile for " + exe + ": " + Err(rc);
+        DrsSettingFn set = Fn<DrsSettingFn>(ID_DrsSetSetting);
+        for (int i = 0; i < ids.Length; i++) {
+          rc = -1;
+          for (int attempt = 0; attempt < SettingLayouts.Length; attempt++) {
+            int which = settingLayout >= 0 ? settingLayout : attempt;
+            SettingLayout l = SettingLayouts[which];
+            IntPtr buf = NewSettingBuffer(l, ids[i]);
+            try {
+              Marshal.WriteInt32(buf, l.CurrentValue, (int)values[i]);
+              rc = set(session, profile, buf);
+            } finally { Marshal.FreeHGlobal(buf); }
+            if (rc == 0) { settingLayout = which; break; }
+            if (settingLayout >= 0) break;
+          }
+          if (rc != 0) return "SetSetting 0x" + ids[i].ToString("X8") + ": " + Err(rc);
+        }
+        rc = Fn<DrsSessionFn>(ID_DrsSaveSettings)(session);
+        return rc == 0 ? "ok" : "SaveSettings: " + Err(rc);
+      } finally { Fn<DrsSessionFn>(ID_DrsDestroySession)(session); }
+    }
+    public static string DrsRestore(string exe, uint[] ids) {
+      int rc = Fn<InitializeFn>(ID_Initialize)(); if (rc != 0) return Err(rc);
+      IntPtr session;
+      rc = Fn<DrsOpenFn>(ID_DrsCreateSession)(out session); if (rc != 0) return "CreateSession: " + Err(rc);
+      try {
+        rc = Fn<DrsSessionFn>(ID_DrsLoadSettings)(session); if (rc != 0) return "LoadSettings: " + Err(rc);
+        IntPtr profile;
+        rc = OpenAppProfile(session, exe, "", false, out profile);
+        if (rc != 0) return "no driver profile for " + exe;
+        DrsRestoreFn restore = Fn<DrsRestoreFn>(ID_DrsRestoreSetting);
+        for (int i = 0; i < ids.Length; i++) restore(session, profile, ids[i]);
+        rc = Fn<DrsSessionFn>(ID_DrsSaveSettings)(session);
+        return rc == 0 ? "ok" : "SaveSettings: " + Err(rc);
+      } finally { Fn<DrsSessionFn>(ID_DrsDestroySession)(session); }
+    }
+    // "id:value:isDefault" per setting, so the UI can show what the driver holds right now.
+    public static string DrsRead(string exe, uint[] ids) {
+      int rc = Fn<InitializeFn>(ID_Initialize)(); if (rc != 0) return "";
+      IntPtr session;
+      if (Fn<DrsOpenFn>(ID_DrsCreateSession)(out session) != 0) return "";
+      try {
+        if (Fn<DrsSessionFn>(ID_DrsLoadSettings)(session) != 0) return "";
+        IntPtr profile;
+        if (OpenAppProfile(session, exe, "", false, out profile) != 0) return "";
+        DrsGetSettingFn get = Fn<DrsGetSettingFn>(ID_DrsGetSetting);
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < ids.Length; i++) {
+          for (int attempt = 0; attempt < SettingLayouts.Length; attempt++) {
+            int which = settingLayout >= 0 ? settingLayout : attempt;
+            SettingLayout l = SettingLayouts[which];
+            IntPtr buf = NewSettingBuffer(l, ids[i]);
+            try {
+              if (get(session, profile, ids[i], buf) == 0) {
+                settingLayout = which;
+                if (sb.Length > 0) sb.Append(';');
+                sb.Append("0x").Append(ids[i].ToString("X8")).Append(':')
+                  .Append((uint)Marshal.ReadInt32(buf, l.CurrentValue)).Append(':')
+                  .Append((uint)Marshal.ReadInt32(buf, l.IsPredefined));
+                break;
+              }
+            } finally { Marshal.FreeHGlobal(buf); }
+            if (settingLayout >= 0) break;
+          }
+        }
+        return sb.ToString();
+      } finally { Fn<DrsSessionFn>(ID_DrsDestroySession)(session); }
+    }
     public static string DeleteMode(int width, int height) {
       uint id = PrimaryId(); EnumFn e = Fn<EnumFn>(ID_Enum);
       for (uint i = 0; i < 64; i++) {

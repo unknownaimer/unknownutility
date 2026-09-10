@@ -32,6 +32,7 @@ function Complete-UTJob {
         'refresh'   { Update-UTInfoBox; Update-UTFortniteStatus; Update-UTValorantStatus; Update-UTStretchedStatus; Initialize-UTSystemTab; Update-UTTweakLabels }
         'fortnite'  { Update-UTFortniteStatus }
         'fnstatus'  { if ($sync.fnLiveStatus) { $sync.FnLiveStatusBox.Text = $sync.fnLiveStatus } }
+        'nvprofile' { Update-UTNvProfileStatus }
         'valorant'  { Update-UTValorantStatus }
         'stretched' { Update-UTStretchedStatus }
         'gameready' { Initialize-UTGameReadyList }

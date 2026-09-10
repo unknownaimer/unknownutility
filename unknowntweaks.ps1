@@ -1310,6 +1310,154 @@ namespace UT.NativeV1 {
       if (rc != 0) return "SaveCustomDisplay: " + Err(rc);
       return rv == 0 ? "ok" : "ok (revert of the trial mode reported " + Err(rv) + ")";
     }
+    // ---- driver settings repository: the database NVIDIA Control Panel and Profile Inspector write ----
+    [StructLayout(LayoutKind.Sequential, Pack = 4)] public struct DRS_PROFILE {
+      public uint version;
+      [MarshalAs(UnmanagedType.ByValArray, SizeConst = 2048)] public ushort[] profileName;
+      public uint gpuSupport, isPredefined, numOfApps, numOfSettings;
+    }
+    [StructLayout(LayoutKind.Sequential, Pack = 4)] public struct DRS_APPLICATION {
+      public uint version, isPredefined;
+      [MarshalAs(UnmanagedType.ByValArray, SizeConst = 2048)] public ushort[] appName;
+      [MarshalAs(UnmanagedType.ByValArray, SizeConst = 2048)] public ushort[] userFriendlyName;
+      [MarshalAs(UnmanagedType.ByValArray, SizeConst = 2048)] public ushort[] launcher;
+    }
+    // NVDRS_SETTING_V1 exists in two shapes in the wild: the original unions are 4-byte aligned
+    // (4100 bytes each, struct 12320) and the later ones carry an NvU64 member that pushes them to
+    // 8-byte alignment (4104 each, struct 12328), moving the current value by four bytes. Which one a
+    // driver accepts is not discoverable up front, so the setting buffer is built by offset and both
+    // are tried; the one that works is remembered. Everything before the unions is identical.
+    struct SettingLayout { public int Size; public int CurrentValue; public int IsPredefined; }
+    static readonly SettingLayout[] SettingLayouts = new SettingLayout[] {
+      new SettingLayout { Size = 12328, CurrentValue = 8224, IsPredefined = 4112 },
+      new SettingLayout { Size = 12320, CurrentValue = 8220, IsPredefined = 4112 }
+    };
+    static int settingLayout = -1;
+    const int OFF_SETTING_ID = 4100, OFF_SETTING_TYPE = 4104, OFF_SETTING_LOCATION = 4108;
+    static IntPtr NewSettingBuffer(SettingLayout l, uint id) {
+      IntPtr buf = Marshal.AllocHGlobal(l.Size);
+      for (int i = 0; i < l.Size; i += 4) Marshal.WriteInt32(buf, i, 0);
+      Marshal.WriteInt32(buf, 0, (int)((uint)l.Size | (1u << 16)));
+      Marshal.WriteInt32(buf, OFF_SETTING_ID, (int)id);
+      Marshal.WriteInt32(buf, OFF_SETTING_TYPE, 0);
+      Marshal.WriteInt32(buf, OFF_SETTING_LOCATION, 0);
+      return buf;
+    }
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int DrsOpenFn(out IntPtr session);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int DrsSessionFn(IntPtr session);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int DrsFindAppFn(IntPtr session, ushort[] appName, out IntPtr profile, ref DRS_APPLICATION app);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int DrsCreateProfileFn(IntPtr session, ref DRS_PROFILE profile, out IntPtr handle);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int DrsCreateAppFn(IntPtr session, IntPtr profile, ref DRS_APPLICATION app);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int DrsSettingFn(IntPtr session, IntPtr profile, IntPtr setting);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int DrsGetSettingFn(IntPtr session, IntPtr profile, uint id, IntPtr setting);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int DrsRestoreFn(IntPtr session, IntPtr profile, uint id);
+    const uint ID_DrsCreateSession = 0x0694D52E, ID_DrsDestroySession = 0xDAD9CFF8, ID_DrsLoadSettings = 0x375DBD6B,
+               ID_DrsSaveSettings = 0xFCBC7E14, ID_DrsCreateProfile = 0xCC176068, ID_DrsFindApp = 0xEEE566B2,
+               ID_DrsCreateApp = 0x4347A9DE, ID_DrsSetSetting = 0x577DD202, ID_DrsGetSetting = 0x73BF8338,
+               ID_DrsRestoreSetting = 0x53F0381E;
+    static ushort[] Wide(string s) {
+      ushort[] a = new ushort[2048];
+      if (s != null) for (int i = 0; i < s.Length && i < 2047; i++) a[i] = s[i];
+      return a;
+    }
+    static uint Ver(Type t, int v) { return (uint)(Marshal.SizeOf(t) | (v << 16)); }
+    public static string DrsSizes() {
+      return Marshal.SizeOf(typeof(DRS_PROFILE)) + "," + Marshal.SizeOf(typeof(DRS_APPLICATION)) + "," + SettingLayouts[0].Size;
+    }
+    public static int DrsLayout() { return settingLayout; }
+    // Finds the profile that owns this executable, creating one only when the driver has none.
+    static int OpenAppProfile(IntPtr session, string exe, string profileName, bool create, out IntPtr profile) {
+      DRS_APPLICATION app = new DRS_APPLICATION();
+      app.version = Ver(typeof(DRS_APPLICATION), 1);
+      app.appName = Wide(exe); app.userFriendlyName = Wide(exe); app.launcher = Wide("");
+      int rc = Fn<DrsFindAppFn>(ID_DrsFindApp)(session, Wide(exe), out profile, ref app);
+      if (rc == 0 || !create) return rc;
+      DRS_PROFILE p = new DRS_PROFILE();
+      p.version = Ver(typeof(DRS_PROFILE), 1); p.profileName = Wide(profileName); p.gpuSupport = 1;
+      rc = Fn<DrsCreateProfileFn>(ID_DrsCreateProfile)(session, ref p, out profile);
+      if (rc != 0) return rc;
+      DRS_APPLICATION na = new DRS_APPLICATION();
+      na.version = Ver(typeof(DRS_APPLICATION), 1); na.isPredefined = 0;
+      na.appName = Wide(exe); na.userFriendlyName = Wide(exe); na.launcher = Wide("");
+      return Fn<DrsCreateAppFn>(ID_DrsCreateApp)(session, profile, ref na);
+    }
+    public static string DrsApply(string exe, string profileName, uint[] ids, uint[] values) {
+      if (ids.Length != values.Length) return "id and value counts differ";
+      int rc = Fn<InitializeFn>(ID_Initialize)(); if (rc != 0) return Err(rc);
+      IntPtr session;
+      rc = Fn<DrsOpenFn>(ID_DrsCreateSession)(out session); if (rc != 0) return "CreateSession: " + Err(rc);
+      try {
+        rc = Fn<DrsSessionFn>(ID_DrsLoadSettings)(session); if (rc != 0) return "LoadSettings: " + Err(rc);
+        IntPtr profile;
+        rc = OpenAppProfile(session, exe, profileName, true, out profile);
+        if (rc != 0) return "profile for " + exe + ": " + Err(rc);
+        DrsSettingFn set = Fn<DrsSettingFn>(ID_DrsSetSetting);
+        for (int i = 0; i < ids.Length; i++) {
+          rc = -1;
+          for (int attempt = 0; attempt < SettingLayouts.Length; attempt++) {
+            int which = settingLayout >= 0 ? settingLayout : attempt;
+            SettingLayout l = SettingLayouts[which];
+            IntPtr buf = NewSettingBuffer(l, ids[i]);
+            try {
+              Marshal.WriteInt32(buf, l.CurrentValue, (int)values[i]);
+              rc = set(session, profile, buf);
+            } finally { Marshal.FreeHGlobal(buf); }
+            if (rc == 0) { settingLayout = which; break; }
+            if (settingLayout >= 0) break;
+          }
+          if (rc != 0) return "SetSetting 0x" + ids[i].ToString("X8") + ": " + Err(rc);
+        }
+        rc = Fn<DrsSessionFn>(ID_DrsSaveSettings)(session);
+        return rc == 0 ? "ok" : "SaveSettings: " + Err(rc);
+      } finally { Fn<DrsSessionFn>(ID_DrsDestroySession)(session); }
+    }
+    public static string DrsRestore(string exe, uint[] ids) {
+      int rc = Fn<InitializeFn>(ID_Initialize)(); if (rc != 0) return Err(rc);
+      IntPtr session;
+      rc = Fn<DrsOpenFn>(ID_DrsCreateSession)(out session); if (rc != 0) return "CreateSession: " + Err(rc);
+      try {
+        rc = Fn<DrsSessionFn>(ID_DrsLoadSettings)(session); if (rc != 0) return "LoadSettings: " + Err(rc);
+        IntPtr profile;
+        rc = OpenAppProfile(session, exe, "", false, out profile);
+        if (rc != 0) return "no driver profile for " + exe;
+        DrsRestoreFn restore = Fn<DrsRestoreFn>(ID_DrsRestoreSetting);
+        for (int i = 0; i < ids.Length; i++) restore(session, profile, ids[i]);
+        rc = Fn<DrsSessionFn>(ID_DrsSaveSettings)(session);
+        return rc == 0 ? "ok" : "SaveSettings: " + Err(rc);
+      } finally { Fn<DrsSessionFn>(ID_DrsDestroySession)(session); }
+    }
+    // "id:value:isDefault" per setting, so the UI can show what the driver holds right now.
+    public static string DrsRead(string exe, uint[] ids) {
+      int rc = Fn<InitializeFn>(ID_Initialize)(); if (rc != 0) return "";
+      IntPtr session;
+      if (Fn<DrsOpenFn>(ID_DrsCreateSession)(out session) != 0) return "";
+      try {
+        if (Fn<DrsSessionFn>(ID_DrsLoadSettings)(session) != 0) return "";
+        IntPtr profile;
+        if (OpenAppProfile(session, exe, "", false, out profile) != 0) return "";
+        DrsGetSettingFn get = Fn<DrsGetSettingFn>(ID_DrsGetSetting);
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < ids.Length; i++) {
+          for (int attempt = 0; attempt < SettingLayouts.Length; attempt++) {
+            int which = settingLayout >= 0 ? settingLayout : attempt;
+            SettingLayout l = SettingLayouts[which];
+            IntPtr buf = NewSettingBuffer(l, ids[i]);
+            try {
+              if (get(session, profile, ids[i], buf) == 0) {
+                settingLayout = which;
+                if (sb.Length > 0) sb.Append(';');
+                sb.Append("0x").Append(ids[i].ToString("X8")).Append(':')
+                  .Append((uint)Marshal.ReadInt32(buf, l.CurrentValue)).Append(':')
+                  .Append((uint)Marshal.ReadInt32(buf, l.IsPredefined));
+                break;
+              }
+            } finally { Marshal.FreeHGlobal(buf); }
+            if (settingLayout >= 0) break;
+          }
+        }
+        return sb.ToString();
+      } finally { Fn<DrsSessionFn>(ID_DrsDestroySession)(session); }
+    }
     public static string DeleteMode(int width, int height) {
       uint id = PrimaryId(); EnumFn e = Fn<EnumFn>(ID_Enum);
       for (uint i = 0; i < 64; i++) {
@@ -2680,6 +2828,111 @@ function Complete-UTLaunchArgsProbe {
 
 #endregion
 
+#region Set-UTNvProfile.ps1
+function Get-UTNvProfileIds {
+    <#
+    .SYNOPSIS
+        The setting ids and values of one preset from config/nvprofile.json, parsed from hex.
+    #>
+    param([Parameter(Mandatory = $true)][string]$PresetName)
+    $p = $sync.configs.nvprofile.Presets.$PresetName
+    if (-not $p) { throw "Unknown NVIDIA profile preset $PresetName" }
+    $ids = New-Object System.Collections.Generic.List[uint32]
+    $values = New-Object System.Collections.Generic.List[uint32]
+    foreach ($s in @($p.Settings)) {
+        $ids.Add([Convert]::ToUInt32([string]$s.Id, 16))
+        $values.Add([Convert]::ToUInt32([string]$s.Value, 16))
+    }
+    return [pscustomobject]@{ Ids = $ids.ToArray(); Values = $values.ToArray(); Settings = @($p.Settings); Content = [string]$p.Content }
+}
+
+function Get-UTNvProfileState {
+    <#
+    .SYNOPSIS
+        What the driver currently holds for the settings this tool writes, and how many of them already
+        match the given preset. Read-only.
+    .DESCRIPTION
+        NVIDIA ships its own Fortnite profile with most of these already set, so "is this the driver
+        default" tells the user nothing useful. What does is whether the values on disk are the ones a
+        preset would write, which is how the tab reports whether a preset is live.
+    #>
+    param([string]$PresetName = 'Potato')
+    $out = [pscustomobject]@{ Available = $false; Application = ''; Preset = $PresetName; Matching = 0; Total = 0; Lines = @() }
+    if (-not ('UT.NativeV1.NvApi' -as [type])) { return $out }
+    if (-not [UT.NativeV1.NvApi]::IsAvailable()) { return $out }
+    $cfg = $sync.configs.nvprofile
+    $out.Available = $true
+    $out.Application = [string]$cfg.Application
+    $names = @{}; $wanted = @{}
+    foreach ($preset in $cfg.Presets.PSObject.Properties) {
+        foreach ($s in @($preset.Value.Settings)) { $names[[string]$s.Id] = [string]$s.Name }
+    }
+    if ($cfg.Presets.$PresetName) {
+        foreach ($s in @($cfg.Presets.$PresetName.Settings)) { $wanted[[string]$s.Id] = [Convert]::ToUInt32([string]$s.Value, 16) }
+    }
+    $ids = @($names.Keys | ForEach-Object { [Convert]::ToUInt32($_, 16) })
+    $raw = [UT.NativeV1.NvApi]::DrsRead($cfg.Application, $ids)
+    if (-not $raw) { return $out }
+    $lines = New-Object System.Collections.Generic.List[string]
+    foreach ($entry in ($raw -split ';')) {
+        $parts = $entry -split ':'
+        if ($parts.Count -lt 3) { continue }
+        $id = [string]$parts[0]
+        $value = [uint32]$parts[1]
+        $name = [string]$names[$id]
+        if (-not $name) { $name = $id }
+        $mark = ''
+        if ($wanted.ContainsKey($id)) {
+            $out.Total++
+            if ($wanted[$id] -eq $value) { $out.Matching++; $mark = "matches $PresetName" } else { $mark = "preset wants 0x{0:X8}" -f $wanted[$id] }
+        }
+        $lines.Add(('{0,-52} {1,-12} {2}' -f $name, ('0x' + $value.ToString('X8')), $mark))
+    }
+    $out.Lines = $lines.ToArray()
+    return $out
+}
+
+function Set-UTNvProfile {
+    <#
+    .SYNOPSIS
+        Writes a preset into the NVIDIA driver profile for Fortnite's executable.
+    .DESCRIPTION
+        Uses the driver's own settings repository through NVAPI - the same database NVIDIA Control
+        Panel writes - so no third-party tool is downloaded or run. Only the settings named in
+        config/nvprofile.json are touched, and Restore-UTNvProfile puts each of them back to the
+        driver default. Nothing is injected into the game and no game file is changed.
+    #>
+    param([Parameter(Mandatory = $true)][string]$PresetName)
+    if (-not ('UT.NativeV1.NvApi' -as [type]) -or -not [UT.NativeV1.NvApi]::IsAvailable()) {
+        throw 'This PC has no NVIDIA driver, so there is no NVIDIA profile to write. AMD and Intel expose their own equivalents in their control panels.'
+    }
+    $cfg = $sync.configs.nvprofile
+    $p = Get-UTNvProfileIds -PresetName $PresetName
+    $r = [UT.NativeV1.NvApi]::DrsApply($cfg.Application, $cfg.ProfileName, $p.Ids, $p.Values)
+    if ($r -ne 'ok') { throw ("the NVIDIA driver refused the profile write: {0}" -f $r) }
+    foreach ($s in $p.Settings) { Write-UTLog ('  {0} -> {1}' -f $s.Name, $s.Means) }
+    Write-UTLog ("NVIDIA profile for {0}: {1} ({2} setting(s)). Restart Fortnite for it to take effect." -f $cfg.Application, $p.Content, $p.Ids.Count) -Level Ok
+}
+
+function Restore-UTNvProfile {
+    <#
+    .SYNOPSIS
+        Puts every setting this tool can write back to the driver default for Fortnite's executable.
+    #>
+    if (-not ('UT.NativeV1.NvApi' -as [type]) -or -not [UT.NativeV1.NvApi]::IsAvailable()) { throw 'No NVIDIA driver on this PC' }
+    $cfg = $sync.configs.nvprofile
+    $all = @{}
+    foreach ($preset in $cfg.Presets.PSObject.Properties) {
+        foreach ($s in @($preset.Value.Settings)) { $all[[string]$s.Id] = $true }
+    }
+    $ids = @($all.Keys | ForEach-Object { [Convert]::ToUInt32($_, 16) })
+    $r = [UT.NativeV1.NvApi]::DrsRestore($cfg.Application, $ids)
+    if ($r -ne 'ok') { throw ("the NVIDIA driver refused the restore: {0}" -f $r) }
+    Write-UTLog ("NVIDIA profile for {0} restored to driver defaults ({1} setting(s))" -f $cfg.Application, $ids.Count) -Level Ok
+}
+
+#endregion
+
 #region Set-UTRegistry.ps1
 function ConvertTo-UTRegistryValue {
     <#
@@ -3742,6 +3995,36 @@ function Select-UTListItem {
 #endregion
 
 #region Initialize-UTGameTabs.ps1
+function Initialize-UTNvProfileTab {
+    foreach ($p in $sync.configs.nvprofile.Presets.PSObject.Properties) {
+        $item = New-Object System.Windows.Controls.ListBoxItem
+        $item.Content = [string]$p.Value.Content
+        $item.Tag = $p.Name
+        [void]$sync.NvProfileList.Items.Add($item)
+    }
+    $sync.NvProfileList.Add_SelectionChanged({
+        try {
+            $sel = $sync.NvProfileList.SelectedItem
+            if ($sel) { $sync.NvProfileDesc.Text = [string]$sync.configs.nvprofile.Presets.($sel.Tag).Description }
+            Update-UTNvProfileStatus
+        } catch { }
+    })
+    $sync.NvProfileList.SelectedIndex = 0
+    Update-UTNvProfileStatus
+}
+
+function Update-UTNvProfileStatus {
+    try {
+        $preset = 'Potato'
+        if ($sync.NvProfileList.SelectedItem) { $preset = [string]$sync.NvProfileList.SelectedItem.Tag }
+        $s = Get-UTNvProfileState -PresetName $preset
+        if (-not $s.Available) { $sync.NvProfileStatusText.Text = 'no NVIDIA driver on this PC: AMD and Intel have their own control panels for these settings'; return }
+        $head = '{0}: {1} of {2} setting(s) already match {3}' -f $s.Application, $s.Matching, $s.Total, $preset
+        if ($s.Total -eq 0) { $head = '{0}: the driver has no profile entry for it yet' -f $s.Application }
+        $sync.NvProfileStatusText.Text = (@($head) + $s.Lines) -join "`r`n"
+    } catch { $sync.NvProfileStatusText.Text = 'driver profile unavailable: ' + $_.Exception.Message }
+}
+
 function Initialize-UTValorantTab {
     foreach ($p in $sync.configs.valorant.Profiles.PSObject.Properties) {
         $item = New-Object System.Windows.Controls.ListBoxItem
@@ -4284,6 +4567,7 @@ function Initialize-UTUI {
     Initialize-UTTweaksTab
     Initialize-UTSystemTab
     Initialize-UTFortniteTab
+    Initialize-UTNvProfileTab
     Initialize-UTValorantTab
     Initialize-UTStretchedTab
     Initialize-UTGameReadyTab
@@ -4486,6 +4770,15 @@ Remove-UTBloatApps -Names ([string[]]$Arguments.Names) -AllUsers:([bool]$Argumen
                 $dlg.Filter = 'unknowntweaks selection (*.json)|*.json'
                 if ($dlg.ShowDialog($sync.form)) { Import-UTSelection -Path $dlg.FileName }
             }
+            'BtnNvProfileApply' {
+                $sel = $sync.NvProfileList.SelectedItem
+                if (-not $sel) { Write-UTLog 'Select a driver preset first' -Level Warn; return }
+                $name = [string]$sel.Tag
+                if ($name -eq 'Potato' -and -not (Confirm-UTAction -Title 'Potato driver profile' -Message "This forces anisotropic filtering off and a +3.0 texture LOD bias in the NVIDIA driver profile for Fortnite. Textures will look blurry, which is the point.`n`nThe driver only applies LOD bias on DirectX 11, so tick the -high -d3d11 launch argument too or nothing will change. Restore driver defaults undoes all of it.`n`nApply it?")) { return }
+                [void](Start-UTUIJob -Kind 'nvprofile' -Arguments @{ Preset = $name } -Script 'Set-UTNvProfile -PresetName ([string]$Arguments.Preset)')
+            }
+            'BtnNvProfileRestore' { [void](Start-UTUIJob -Kind 'nvprofile' -Script 'Restore-UTNvProfile') }
+            'BtnNvProfileRefresh' { Update-UTNvProfileStatus }
             'BtnFnLiveStatus' {
                 if (Start-UTUIJob -Kind 'fnstatus' -Script 'Get-UTFortniteStatus | Out-Null') { $sync.FnLiveStatusBox.Text = 'asking status.epicgames.com...' }
             }
@@ -4789,6 +5082,7 @@ function Complete-UTJob {
         'refresh'   { Update-UTInfoBox; Update-UTFortniteStatus; Update-UTValorantStatus; Update-UTStretchedStatus; Initialize-UTSystemTab; Update-UTTweakLabels }
         'fortnite'  { Update-UTFortniteStatus }
         'fnstatus'  { if ($sync.fnLiveStatus) { $sync.FnLiveStatusBox.Text = $sync.fnLiveStatus } }
+        'nvprofile' { Update-UTNvProfileStatus }
         'valorant'  { Update-UTValorantStatus }
         'stretched' { Update-UTStretchedStatus }
         'gameready' { Initialize-UTGameReadyList }
@@ -5579,7 +5873,7 @@ $sync.configs.fortnite = @'
       { "Arg": "-NOSPLASH", "Content": "Skip the splash screen", "Description": "Parsed by the engine (WindowsPlatformSplash.cpp). Cosmetic, saves a second at launch.", "Default": true },
       { "Arg": "-FeatureLevelES31", "Content": "Force Performance Mode renderer", "Description": "Forces the ES3.1 feature level, which is what Performance Mode uses. Redundant if the profile already sets it, but guarantees it even if the game rewrites the config.", "Default": false },
       { "Arg": "-d3d12 -sm6", "Content": "Force DirectX 12 (Shader Model 6)", "Description": "Forces the D3D12 RHI and SM6. Use instead of the Performance Mode flag, never both.", "Default": false, "Excludes": "-FeatureLevelES31" },
-      { "Arg": "-d3d11", "Content": "Legacy DirectX 11 Performance Mode (older NVIDIA cards)", "Description": "Brings back the DX11 renderer Epic removed from the Rendering Mode menu. The D3D11 RHI still ships and this flag still forces it (verified on client 42.10: 'Using Forced RHI: D3D11'); the engine then caps at the ES3.1 feature level, so this is the old DX11 Performance Mode, not full DX11. Best bet on GTX 10/16-series and other older NVIDIA cards, or if DX12 Performance Mode stutters. On RTX cards with current drivers Epic's DX12 Performance Mode is usually the better choice. Cannot be combined with the DirectX 12 flag.", "Default": false, "Excludes": "-d3d12 -sm6" },
+      { "Arg": "-high -d3d11", "Content": "Legacy DirectX 11 Performance Mode (older NVIDIA cards)", "Description": "Brings back the DX11 renderer Epic removed from the Rendering Mode menu. The D3D11 RHI still ships and -d3d11 still forces it (verified on client 42.10: 'Using Forced RHI: D3D11'); the engine then caps at the ES3.1 feature level, so this is the old DX11 Performance Mode, not full DX11. It is also the only renderer on which the NVIDIA driver's LOD bias applies, so the Potato driver profile below needs this. Best bet on GTX 10/16-series and other older NVIDIA cards, or if DX12 Performance Mode stutters; on RTX cards with current drivers Epic's DX12 Performance Mode is usually better. -high is the pairing the community guides use: Unreal does not parse it and Windows ignores an unknown switch, so the DX11 half is what actually changes anything. Cannot be combined with the DirectX 12 flag.", "Default": false, "Excludes": "-d3d12 -sm6" },
       { "Arg": "-nosound", "Content": "No audio device", "Description": "Only for testing FPS without sound; you will not hear footsteps.", "Default": false }
     ],
     "Placebo": [
@@ -5587,7 +5881,7 @@ $sync.configs.fortnite = @'
       { "Arg": "-lanplay", "Reason": "Server-only code path (UWorld::Listen). Does nothing on a client." },
       { "Arg": "-limitclientticks", "Reason": "Server-only throttle of client connections. Does nothing on a client, and the =120 form never even matches." },
       { "Arg": "-PREFERREDPROCESSOR", "Reason": "Does not exist in the engine source at all; it only lives in old documentation." },
-      { "Arg": "-high", "Reason": "A Source engine (Counter-Strike) switch. Unreal never parses it." },
+      { "Arg": "-high (on its own)", "Reason": "A Source engine switch Unreal never parses, so it sets no priority. Harmless, and it ships attached to the DX11 option because that is the pairing every guide uses; the DX11 half is what does the work." },
       { "Arg": "-malloc=system", "Reason": "Allocator switches are compiled out of Shipping builds." },
       { "Arg": "-NOVERIFYGC", "Reason": "Already off in Shipping builds." },
       { "Arg": "-NOTEXTURESTREAMING", "Reason": "Works and is harmful: loads every texture at full size and exhausts VRAM. Epic has a support article about removing it." },
@@ -5786,6 +6080,45 @@ $sync.configs.gameservers = @'
   "Baseline": [
     { "Region": "Internet (Cloudflare)", "Host": "1.1.1.1", "Location": "nearest anycast edge" }
   ]
+}
+'@ | ConvertFrom-Json
+
+$sync.configs.nvprofile = @'
+{
+  "Application": "FortniteClient-Win64-Shipping.exe",
+  "ProfileName": "Fortnite",
+  "Presets": {
+    "Performance": {
+      "Content": "Performance (no visual change)",
+      "Description": "The driver-side settings that cost nothing to look at: the GPU stays at its performance clocks instead of drifting down, texture filtering optimisations on, VSync forced off, and one pre-rendered frame. Nothing here blurs anything. These apply on DirectX 11 and 12 except the pre-rendered frame limit, which DirectX 12 leaves to the game.",
+      "Settings": [
+        { "Name": "Power management mode", "Id": "0x1057EB71", "Value": "0x00000001", "Means": "prefer maximum performance" },
+        { "Name": "Texture filtering - Quality", "Id": "0x00CE2691", "Value": "0x00000014", "Means": "high performance" },
+        { "Name": "Texture filtering - Anisotropic sample optimization", "Id": "0x00E73211", "Value": "0x00000001", "Means": "on" },
+        { "Name": "Texture filtering - Anisotropic filter optimization", "Id": "0x0084CD70", "Value": "0x00000001", "Means": "on" },
+        { "Name": "Texture filtering - Trilinear optimization", "Id": "0x002ECAF2", "Value": "0x00000001", "Means": "on" },
+        { "Name": "Vertical Sync", "Id": "0x00A879CF", "Value": "0x08416747", "Means": "force off" },
+        { "Name": "Maximum pre-rendered frames", "Id": "0x007BA09E", "Value": "0x00000001", "Means": "1" }
+      ]
+    },
+    "Potato": {
+      "Content": "Potato (blurry textures, DirectX 11 only)",
+      "Description": "EXPERIMENTAL. Everything in Performance, plus anisotropic filtering forced to its lowest and a positive texture LOD bias of +3.0, which is what makes textures look like a potato. The driver only applies LOD bias on DirectX 11 and older: on DirectX 12 the game owns sampler state and this does nothing at all, so pair it with the -high -d3d11 launch argument or you will see no difference. The bias is deliberately positive (blurrier). A negative bias sharpens distant textures and is the version that gets argued about in competitive rules, so it is not offered.",
+      "Settings": [
+        { "Name": "Power management mode", "Id": "0x1057EB71", "Value": "0x00000001", "Means": "prefer maximum performance" },
+        { "Name": "Texture filtering - Quality", "Id": "0x00CE2691", "Value": "0x00000014", "Means": "high performance" },
+        { "Name": "Texture filtering - Anisotropic sample optimization", "Id": "0x00E73211", "Value": "0x00000001", "Means": "on" },
+        { "Name": "Texture filtering - Anisotropic filter optimization", "Id": "0x0084CD70", "Value": "0x00000001", "Means": "on" },
+        { "Name": "Texture filtering - Trilinear optimization", "Id": "0x002ECAF2", "Value": "0x00000001", "Means": "on" },
+        { "Name": "Vertical Sync", "Id": "0x00A879CF", "Value": "0x08416747", "Means": "force off" },
+        { "Name": "Maximum pre-rendered frames", "Id": "0x007BA09E", "Value": "0x00000001", "Means": "1" },
+        { "Name": "Anisotropic filtering mode", "Id": "0x10D2BB16", "Value": "0x00000001", "Means": "user defined" },
+        { "Name": "Anisotropic filtering setting", "Id": "0x101E61A9", "Value": "0x00000000", "Means": "1x (off)" },
+        { "Name": "Texture filtering - Driver Controlled LOD Bias", "Id": "0x00638E8F", "Value": "0x00000000", "Means": "off, so the manual bias below is used" },
+        { "Name": "Texture filtering - LOD Bias", "Id": "0x00738E8F", "Value": "0x00000018", "Means": "+3.0 (blurrier)" }
+      ]
+    }
+  }
 }
 '@ | ConvertFrom-Json
 
@@ -7454,6 +7787,15 @@ $inputXML = @'
                   <Button Name="BtnFnArgsClear" Content="Clear launch arguments"/>
                   <Button Name="BtnFnProbe" Content="Probe launcher key"/>
                   <Button Name="BtnFnProbeDone" Content="Finish probe"/>
+                </StackPanel>
+                <TextBlock Text="NVIDIA driver profile (experimental)" Style="{StaticResource SectionHeader}" ToolTip="Writes into the driver's own settings database through NVAPI - the same one NVIDIA Control Panel and Profile Inspector write - so nothing is downloaded and no third-party tool runs. Only the settings listed in the preset are touched, and Restore puts every one of them back to the driver default. No game file is changed and nothing is injected. Needs an NVIDIA GPU; AMD and Intel expose their own equivalents in their control panels."/>
+                <TextBlock Name="NvProfileStatusText" Style="{StaticResource Body}" Text="reading driver profile..."/>
+                <ListBox Name="NvProfileList" Margin="8,4,8,4" Height="52"/>
+                <TextBlock Name="NvProfileDesc" Style="{StaticResource Dim}" Text=""/>
+                <StackPanel Orientation="Horizontal" Margin="8,6,0,0">
+                  <Button Name="BtnNvProfileApply" Content="Apply driver profile" Style="{StaticResource AccentButton}" ToolTip="Restart Fortnite afterwards for the driver to pick it up. The Potato preset's LOD bias only applies on DirectX 11, so tick the -high -d3d11 launch argument above as well or it will do nothing."/>
+                  <Button Name="BtnNvProfileRestore" Content="Restore driver defaults" ToolTip="Puts every setting this tool can write back to the NVIDIA default for Fortnite. Anything you set yourself in NVIDIA Control Panel for other applications is untouched."/>
+                  <Button Name="BtnNvProfileRefresh" Content="Refresh"/>
                 </StackPanel>
                 <TextBlock Text="Live status (Epic)" Style="{StaticResource SectionHeader}"/>
                 <StackPanel Orientation="Horizontal" Margin="8,4,0,4">
