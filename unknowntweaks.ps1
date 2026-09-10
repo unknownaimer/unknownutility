@@ -5198,19 +5198,66 @@ function Set-UTHyperlink {
 function New-UTSplashLink {
     <#
     .SYNOPSIS
-        A TextBlock holding one clickable link for the boot screen.
+        A TextBlock holding one clickable link: grey until the pointer is on it, then the accent, so
+        the boot screen keeps to one colour like the rest of the interface.
     #>
     param([string]$Label, [string]$Url)
     $tb = New-Object System.Windows.Controls.TextBlock
-    $tb.FontSize = 11.5
-    $tb.Margin = '0,0,18,0'
+    $tb.FontSize = 11
+    $tb.Margin = '0,0,20,0'
     $hl = New-Object System.Windows.Documents.Hyperlink
     [void]$hl.Inlines.Add($Label)
-    $hl.Foreground = New-UTSplashBrush '#1C97EA'
+    $hl.Foreground = New-UTSplashBrush '#858585'
     $hl.TextDecorations = $null
+    $hl.Add_MouseEnter({ $this.Foreground = New-UTSplashBrush '#E8A33D' })
+    $hl.Add_MouseLeave({ $this.Foreground = New-UTSplashBrush '#858585' })
     Set-UTHyperlink -Link $hl -Url $Url
     [void]$tb.Inlines.Add($hl)
     return $tb
+}
+
+function New-UTSplashGridBrush {
+    <#
+    .SYNOPSIS
+        The same 16 px graph-paper tile the live graph cards use, so the boot screen looks like the
+        instrument it is opening.
+    #>
+    $geo = New-Object System.Windows.Media.GeometryGroup
+    [void]$geo.Children.Add((New-Object System.Windows.Media.LineGeometry -ArgumentList (New-Object System.Windows.Point -ArgumentList 0, 15.5), (New-Object System.Windows.Point -ArgumentList 16, 15.5)))
+    [void]$geo.Children.Add((New-Object System.Windows.Media.LineGeometry -ArgumentList (New-Object System.Windows.Point -ArgumentList 15.5, 0), (New-Object System.Windows.Point -ArgumentList 15.5, 16)))
+    $drawing = New-Object System.Windows.Media.GeometryDrawing
+    $drawing.Geometry = $geo
+    $drawing.Pen = New-Object System.Windows.Media.Pen -ArgumentList (New-UTSplashBrush '#2A2A2E'), 1
+    $brush = New-Object System.Windows.Media.DrawingBrush
+    $brush.Drawing = $drawing
+    $brush.TileMode = 'Tile'
+    $brush.Viewport = New-Object System.Windows.Rect -ArgumentList 0, 0, 16, 16
+    $brush.ViewportUnits = 'Absolute'
+    $brush.Freeze()
+    return $brush
+}
+
+function Update-UTSplash {
+    <#
+    .SYNOPSIS
+        Adds a line to the boot log and advances the bar. Every stage named here is a real step the
+        caller is about to take, not a decorative countdown.
+    #>
+    param($Window, [string]$Stage, [double]$Fraction = -1)
+    if (-not $Window) { return }
+    try {
+        $ui = $Window.Resources['ut']
+        if (-not $ui) { return }
+        foreach ($old in $ui.Log.Children) { $old.Foreground = New-UTSplashBrush '#6A6A6A' }
+        $line = New-Object System.Windows.Controls.TextBlock
+        $line.Text = '> ' + $Stage
+        $line.FontSize = 11.5
+        $line.Foreground = New-UTSplashBrush '#E8A33D'
+        [void]$ui.Log.Children.Add($line)
+        while ($ui.Log.Children.Count -gt 4) { $ui.Log.Children.RemoveAt(0) }
+        if ($Fraction -ge 0) { $ui.Bar.Width = [math]::Max(2, [math]::Min(1, $Fraction) * $ui.TrackWidth) }
+        Wait-UTSplash -Window $Window -Milliseconds 40
+    } catch { }
 }
 
 function Show-UTSplash {
@@ -5233,8 +5280,8 @@ function Show-UTSplash {
         $win.WindowStyle = 'None'
         $win.ResizeMode = 'NoResize'
         $win.WindowStartupLocation = 'CenterScreen'
-        $win.Width = 520
-        $win.Height = 230
+        $win.Width = 640
+        $win.Height = 330
         $win.ShowInTaskbar = $false
         $win.Topmost = $true
         $win.Background = New-UTSplashBrush '#1E1E1E'
@@ -5248,10 +5295,11 @@ function Show-UTSplash {
         $frame = New-Object System.Windows.Controls.Border
         $frame.BorderBrush = New-UTSplashBrush '#3E3E42'
         $frame.BorderThickness = New-Object System.Windows.Thickness 1
+        $frame.Background = New-UTSplashGridBrush
         $win.Content = $frame
 
         $grid = New-Object System.Windows.Controls.Grid
-        $grid.Margin = New-Object System.Windows.Thickness 26, 22, 26, 16
+        $grid.Margin = New-Object System.Windows.Thickness 34, 28, 34, 18
         $rowTop = New-Object System.Windows.Controls.RowDefinition; $rowTop.Height = New-Object System.Windows.GridLength 1, 'Star'
         $rowFoot = New-Object System.Windows.Controls.RowDefinition; $rowFoot.Height = [System.Windows.GridLength]::Auto
         [void]$grid.RowDefinitions.Add($rowTop)
@@ -5264,28 +5312,79 @@ function Show-UTSplash {
         [System.Windows.Controls.Grid]::SetRow($top, 0)
         [void]$grid.Children.Add($top)
 
-        $prompt = New-Object System.Windows.Controls.TextBlock
-        $prompt.Text = '> booting unknowntweaks'
-        if ($Beta) { $prompt.Text += '   [private beta]' }
-        $prompt.FontSize = 11.5
-        $prompt.Foreground = New-UTSplashBrush '#858585'
-        $prompt.Margin = New-Object System.Windows.Thickness 0, 0, 0, 10
-        [void]$top.Children.Add($prompt)
+        # Wordmark: the name in two weights of the same idea, the accent carrying the second half.
+        $mark = New-Object System.Windows.Controls.TextBlock
+        $mark.FontSize = 34
+        $mark.FontWeight = 'Bold'
+        $runOne = New-Object System.Windows.Documents.Run -ArgumentList 'UNKNOWN'
+        $runOne.Foreground = New-UTSplashBrush '#D4D4D4'
+        $runTwo = New-Object System.Windows.Documents.Run -ArgumentList ' UTILITY'
+        $runTwo.Foreground = New-UTSplashBrush '#E8A33D'
+        [void]$mark.Inlines.Add($runOne)
+        [void]$mark.Inlines.Add($runTwo)
 
+        $head = New-Object System.Windows.Controls.DockPanel
+        $head.LastChildFill = $false
+        [void]$head.Children.Add($mark)
+        if ($Beta) {
+            $chip = New-Object System.Windows.Controls.Border
+            $chip.BorderBrush = New-UTSplashBrush '#E8A33D'
+            $chip.BorderThickness = New-Object System.Windows.Thickness 1
+            $chip.CornerRadius = New-Object System.Windows.CornerRadius 3
+            $chip.Padding = New-Object System.Windows.Thickness 7, 2, 7, 2
+            $chip.VerticalAlignment = 'Center'
+            $chipText = New-Object System.Windows.Controls.TextBlock
+            $chipText.Text = 'PRIVATE BETA'
+            $chipText.FontSize = 10
+            $chipText.Foreground = New-UTSplashBrush '#E8A33D'
+            $chip.Child = $chipText
+            [System.Windows.Controls.DockPanel]::SetDock($chip, 'Right')
+            [void]$head.Children.Add($chip)
+        }
+        [void]$top.Children.Add($head)
+
+        # The line the wordmark cannot carry: who is sitting there. The name takes the emphasis
+        # because the rest of the sentence is already spelled out above it in 34 point.
         $welcome = New-Object System.Windows.Controls.TextBlock
         $welcome.Name = 'SplashWelcome'
-        $welcome.Text = ('Welcome to Unknown Utility, {0}' -f $UserName)
-        $welcome.FontSize = 20
-        $welcome.FontWeight = 'Bold'
+        $welcome.FontSize = 13
         $welcome.TextWrapping = 'Wrap'
-        $welcome.Foreground = New-UTSplashBrush '#4EC9B0'
+        $welcome.Margin = New-Object System.Windows.Thickness 0, 2, 0, 0
+        $greetLead = New-Object System.Windows.Documents.Run -ArgumentList 'Welcome to Unknown Utility, '
+        $greetLead.Foreground = New-UTSplashBrush '#858585'
+        $greetName = New-Object System.Windows.Documents.Run -ArgumentList $UserName
+        $greetName.Foreground = New-UTSplashBrush '#D4D4D4'
+        $greetName.FontWeight = 'Bold'
+        [void]$welcome.Inlines.Add($greetLead)
+        [void]$welcome.Inlines.Add($greetName)
         [void]$top.Children.Add($welcome)
+
+        # The boot log: one line per real stage, the newest in the accent, the rest receding.
+        $log = New-Object System.Windows.Controls.StackPanel
+        $log.Margin = New-Object System.Windows.Thickness 0, 20, 0, 0
+        $log.MinHeight = 72
+        [void]$top.Children.Add($log)
+
+        $trackWidth = $win.Width - 70
+        $track = New-Object System.Windows.Controls.Border
+        $track.Height = 3
+        $track.Background = New-UTSplashBrush '#2D2D30'
+        $track.Margin = New-Object System.Windows.Thickness 0, 16, 0, 0
+        $track.HorizontalAlignment = 'Left'
+        $track.Width = $trackWidth
+        $bar = New-Object System.Windows.Controls.Border
+        $bar.Height = 3
+        $bar.Background = New-UTSplashBrush '#E8A33D'
+        $bar.HorizontalAlignment = 'Left'
+        $bar.Width = 2
+        $track.Child = $bar
+        [void]$top.Children.Add($track)
 
         $sub = New-Object System.Windows.Controls.TextBlock
         $sub.Name = 'SplashStatus'
-        $sub.Text = 'loading the interface...   (click to skip)'
-        $sub.FontSize = 11.5
-        $sub.Foreground = New-UTSplashBrush '#858585'
+        $sub.Text = 'click anywhere to skip'
+        $sub.FontSize = 10.5
+        $sub.Foreground = New-UTSplashBrush '#6A6A6A'
         $sub.Margin = New-Object System.Windows.Thickness 0, 8, 0, 0
         [void]$top.Children.Add($sub)
 
@@ -5311,11 +5410,13 @@ function Show-UTSplash {
         $by.Text = ('MADE BY {0}' -f $credits.Author)
         $by.FontSize = 11
         $by.FontWeight = 'Bold'
-        $by.Foreground = New-UTSplashBrush '#007ACC'
+        $by.Foreground = New-UTSplashBrush '#858585'
         $by.HorizontalAlignment = 'Right'
         $by.Margin = New-Object System.Windows.Thickness 0, 6, 0, 0
         [void]$foot.Children.Add($by)
 
+        # Tag stays the shown-at time and the click flag, so the log and bar are handed over here.
+        $win.Resources['ut'] = @{ Log = $log; Bar = $bar; TrackWidth = $trackWidth; Status = $sub }
         $win.Tag = [DateTime]::UtcNow
         $win.Show()
         # One short pump so the window actually paints before the caller starts the heavy work.
@@ -8575,13 +8676,16 @@ Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase
 $UTSplash = Show-UTSplash -Beta:([bool]$sync.beta)
 
 Write-UTLog 'collecting system information...'
+Update-UTSplash -Window $UTSplash -Stage 'reading this PC' -Fraction 0.15
 $sync.sysinfo = Get-UTSystemInfo
+Update-UTSplash -Window $UTSplash -Stage ('{0}   {1}   {2} GB' -f $sync.sysinfo.CPU, $sync.sysinfo.GPU, $sync.sysinfo.RamGB) -Fraction 0.4
 
 # A stretched session that ended without its restore (crash, power loss) leaves a state file behind;
 # put the desktop and the monitor device back before anything else is shown.
 try { if (Test-UTStretchedState) { Restore-UTStretched } } catch { Write-UTLog ('stretched restore: ' + $_.Exception.Message) -Level Warn }
 
 # ---- window ---------------------------------------------------------------------------------
+Update-UTSplash -Window $UTSplash -Stage 'building the interface' -Fraction 0.6
 [xml]$UTXaml = $inputXML
 $UTReader = New-Object System.Xml.XmlNodeReader $UTXaml
 try {
@@ -8619,8 +8723,10 @@ if ($UTNative) {
 }
 
 Initialize-UTUI
+Update-UTSplash -Window $UTSplash -Stage 'starting the live monitor' -Fraction 0.85
 Start-UTMonitor
 Start-UTUITimer
+Update-UTSplash -Window $UTSplash -Stage 'ready' -Fraction 1
 
 $sync.form.Add_Loaded({
     try {

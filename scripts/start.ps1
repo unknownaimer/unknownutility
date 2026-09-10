@@ -102,13 +102,16 @@ Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase
 $UTSplash = Show-UTSplash -Beta:([bool]$sync.beta)
 
 Write-UTLog 'collecting system information...'
+Update-UTSplash -Window $UTSplash -Stage 'reading this PC' -Fraction 0.15
 $sync.sysinfo = Get-UTSystemInfo
+Update-UTSplash -Window $UTSplash -Stage ('{0}   {1}   {2} GB' -f $sync.sysinfo.CPU, $sync.sysinfo.GPU, $sync.sysinfo.RamGB) -Fraction 0.4
 
 # A stretched session that ended without its restore (crash, power loss) leaves a state file behind;
 # put the desktop and the monitor device back before anything else is shown.
 try { if (Test-UTStretchedState) { Restore-UTStretched } } catch { Write-UTLog ('stretched restore: ' + $_.Exception.Message) -Level Warn }
 
 # ---- window ---------------------------------------------------------------------------------
+Update-UTSplash -Window $UTSplash -Stage 'building the interface' -Fraction 0.6
 [xml]$UTXaml = $inputXML
 $UTReader = New-Object System.Xml.XmlNodeReader $UTXaml
 try {
@@ -146,8 +149,10 @@ if ($UTNative) {
 }
 
 Initialize-UTUI
+Update-UTSplash -Window $UTSplash -Stage 'starting the live monitor' -Fraction 0.85
 Start-UTMonitor
 Start-UTUITimer
+Update-UTSplash -Window $UTSplash -Stage 'ready' -Fraction 1
 
 $sync.form.Add_Loaded({
     try {

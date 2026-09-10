@@ -130,10 +130,21 @@ try {
 
     # ---- the boot screen ----------------------------------------------------------------------
     Write-Host 'boot screen'
+    # TextBlock.Text is empty when the content was built from Run inlines, which the two-tone
+    # wordmark and greeting are, so the runs have to be read as well or this silently sees nothing.
+    function Get-UTSplashRunText($inlines) {
+        $s = ''
+        foreach ($i in $inlines) {
+            if ($i -is [System.Windows.Documents.Run]) { $s += [string]$i.Text }
+            elseif ($i -is [System.Windows.Documents.Span]) { $s += Get-UTSplashRunText $i.Inlines }
+        }
+        return $s
+    }
     function Get-UTSplashStrings($node) {
         $out = @()
         if ($node -is [System.Windows.Controls.TextBlock]) {
             $out += [string]$node.Text
+            $out += Get-UTSplashRunText $node.Inlines
             foreach ($i in $node.Inlines) { if ($i -is [System.Windows.Documents.Hyperlink] -and $i.NavigateUri) { $out += $i.NavigateUri.AbsoluteUri } }
         }
         foreach ($c in [System.Windows.LogicalTreeHelper]::GetChildren($node)) {
@@ -148,6 +159,16 @@ try {
     if ($splash) {
         $strings = @(Get-UTSplashStrings $splash)
         Assert (($strings -join "`n") -match 'Welcome to Unknown Utility, tester') 'the greeting names the user'
+        Assert (($strings -join '') -match 'UNKNOWN UTILITY') 'the wordmark is on the boot screen'
+        $ui = $splash.Resources['ut']
+        Assert ($null -ne $ui -and $null -ne $ui.Log -and $null -ne $ui.Bar) 'the boot log and progress bar are reachable for stage updates'
+        $before = $ui.Bar.Width
+        Update-UTSplash -Window $splash -Stage 'reading this PC' -Fraction 0.4
+        Update-UTSplash -Window $splash -Stage 'building the interface' -Fraction 0.8
+        Assert ($ui.Log.Children.Count -eq 2) "each stage adds a boot-log line (got $($ui.Log.Children.Count))"
+        Assert ($ui.Bar.Width -gt $before) "the progress bar advanced ($([int]$before) -> $([int]$ui.Bar.Width) px)"
+        1..6 | ForEach-Object { Update-UTSplash -Window $splash -Stage "stage $_" }
+        Assert ($ui.Log.Children.Count -le 4) "the boot log keeps only the last few lines (got $($ui.Log.Children.Count))"
         Assert (($strings -join "`n") -match ('MADE BY ' + [regex]::Escape($credits.Author))) 'the author credit is on the boot screen'
         Assert ($strings -contains $credits.Support) 'the support link is on the boot screen'
         Assert ($strings -contains $credits.TikTok) 'the TikTok link is on the boot screen'
