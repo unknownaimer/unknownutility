@@ -3325,12 +3325,60 @@ function Test-UTDisplayMode {
     return $false
 }
 
+function Get-UTMaxRefresh {
+    <#
+    .SYNOPSIS
+        The highest refresh rate this panel offers at any resolution.
+    .DESCRIPTION
+        A stretched mode is worth nothing at 60 Hz on a 240 Hz monitor, and a custom mode is timed by
+        the driver from whatever rate is asked for, so the panel's maximum is what to ask for.
+    #>
+    $rates = @([UT.NativeV1.Display]::EnumModes() | ForEach-Object { [int]$_.Hz })
+    if ($rates.Count -eq 0) { return 60 }
+    return ($rates | Sort-Object -Descending)[0]
+}
+
 function Get-UTBestRefresh {
-    param([int]$Width, [int]$Height, [int]$Prefer)
+    <#
+    .SYNOPSIS
+        The highest refresh Windows lists for this exact mode, falling back to the panel's maximum.
+    #>
+    param([int]$Width, [int]$Height)
     $rates = @([UT.NativeV1.Display]::EnumModes() | Where-Object { $_.Width -eq $Width -and $_.Height -eq $Height } | ForEach-Object { [int]$_.Hz })
-    if ($rates -contains $Prefer) { return $Prefer }
     if ($rates.Count -gt 0) { return ($rates | Sort-Object -Descending)[0] }
-    return $Prefer
+    return (Get-UTMaxRefresh)
+}
+
+function Get-UTStretchedPresets {
+    <#
+    .SYNOPSIS
+        The stretched modes worth offering on this monitor: every ratio from config/stretched.json at
+        every sensible vertical resolution, with whether Windows already lists it and whether VALORANT
+        will take it.
+    .DESCRIPTION
+        Heights are 1080 (fewer pixels, the reason most people do this) plus the panel's own height
+        when it is taller, so a 1440p or 4K owner can stretch without dropping to 1080p. Widths are
+        rounded to an even number because odd widths upset some timings. VALORANT will not go below
+        its minimum supported resolution of 1280x720 whatever the monitor reports, so anything under
+        that is marked as Fortnite-only.
+    #>
+    $cur = [UT.NativeV1.Display]::GetCurrent()
+    $heights = New-Object System.Collections.Generic.List[int]
+    foreach ($h in @(1080, [int]$cur.Height)) { if ($h -ge 720 -and -not $heights.Contains($h)) { [void]$heights.Add($h) } }
+    $out = New-Object System.Collections.Generic.List[object]
+    foreach ($h in ($heights | Sort-Object)) {
+        foreach ($r in @($sync.configs.stretched.Ratios)) {
+            $w = [int]([math]::Round(($h * [double]$r.Ratio) / 2.0) * 2)
+            if ($w -ge [int]$cur.Width) { continue }
+            $out.Add([pscustomobject]@{
+                Width = $w; Height = $h; Tag = ('{0}x{1}' -f $w, $h)
+                RatioName = [string]$r.Name; Label = [string]$r.Label; Common = [string]$r.Common
+                Valorant = ([bool]$r.Valorant -and $w -ge 1280 -and $h -ge 720)
+                Offered = (Test-UTDisplayMode -Width $w -Height $h)
+            })
+        }
+    }
+    return $out.ToArray()
 }
 
 function Add-UTCustomMode {
@@ -3344,7 +3392,9 @@ function Add-UTCustomMode {
     if (-not [UT.NativeV1.NvApi]::IsAvailable()) {
         throw ("{0}x{1} is not offered by Windows and this PC has no NVIDIA driver to create it with. Add it in your GPU's control panel (AMD: Display > Custom Resolutions; Intel: Display > Custom) and try again." -f $Width, $Height)
     }
-    if ($Hz -le 0) { $Hz = [UT.NativeV1.Display]::GetCurrent().Hz }
+    # Always ask for the panel's top refresh rate: a stretched mode at 60 Hz on a high-refresh monitor
+    # is worse than not doing it at all, and the driver times a custom mode from whatever we ask for.
+    if ($Hz -le 0) { $Hz = Get-UTMaxRefresh }
     $r = [UT.NativeV1.NvApi]::AddMode($Width, $Height, $Hz)
     if ($r -ne 'ok') {
         throw ("The NVIDIA driver refused to create {0}x{1}@{2}: {3}. Create it once by hand in NVIDIA Control Panel > Change resolution > Customize > Create Custom Resolution, then this tool can use it." -f $Width, $Height, $Hz, $r)
@@ -3408,13 +3458,16 @@ function Start-UTStretched {
     param([Parameter(Mandatory = $true)][int]$Width, [Parameter(Mandatory = $true)][int]$Height, [string]$Game = 'None')
     if (Test-UTStretchedState) { throw 'A stretched session is already active. Press Restore desktop first.' }
     if (-not ('UT.NativeV1.Display' -as [type])) { throw 'The native display helper is not available on this PC' }
+    if ($Game -eq 'Valorant' -and -not [UT.NativeV1.NvApi]::IsAvailable()) {
+        throw 'The VALORANT route is NVIDIA only: it needs the driver API to create the mode, and hiding the monitor from the game is only safe when the NVIDIA driver is the one still driving the panel.'
+    }
     $cur = [UT.NativeV1.Display]::GetCurrent()
     $state = [ordered]@{ Width = $cur.Width; Height = $cur.Height; Hz = $cur.Hz; Scaling = [int][UT.NativeV1.Display]::GetScaling(); Monitors = @(); Game = $Game; Started = (Get-Date).ToString('s') }
     $statePath = Get-UTStretchedStatePath
     ([pscustomobject]$state) | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $statePath -Encoding ASCII
     try {
-        [void](Add-UTCustomMode -Width $Width -Height $Height -Hz $cur.Hz)
-        $hz = Get-UTBestRefresh -Width $Width -Height $Height -Prefer $cur.Hz
+        [void](Add-UTCustomMode -Width $Width -Height $Height -Hz (Get-UTMaxRefresh))
+        $hz = Get-UTBestRefresh -Width $Width -Height $Height
         Write-UTStretchedGameConfig -Game $Game -Width $Width -Height $Height
         if ($Game -eq 'Valorant') {
             foreach ($m in (Get-UTMonitorDevices | Where-Object { $_.Status -eq 'OK' })) {
@@ -4152,12 +4205,7 @@ function Update-UTValorantStatus {
 }
 
 function Initialize-UTStretchedTab {
-    foreach ($p in @($sync.configs.stretched.Presets)) {
-        $item = New-Object System.Windows.Controls.ListBoxItem
-        $item.Content = [string]$p.Label
-        $item.Tag = ('{0}x{1}' -f $p.Width, $p.Height)
-        [void]$sync.StretchPresetList.Items.Add($item)
-    }
+    Update-UTStretchedPresetList
     foreach ($g in $sync.configs.stretched.Games.PSObject.Properties) {
         $item = New-Object System.Windows.Controls.ListBoxItem
         $item.Content = [string]$g.Value.Content
@@ -4169,22 +4217,42 @@ function Initialize-UTStretchedTab {
     Update-UTStretchedStatus
 }
 
+function Update-UTStretchedPresetList {
+    <#
+    .SYNOPSIS
+        Rebuilds the resolution table for this monitor: one row per ratio per usable height, with the
+        aspect, whether Windows already lists it, and whether VALORANT will take it.
+    #>
+    $list = $sync.StretchPresetList
+    $selected = ''
+    if ($list.SelectedItem) { $selected = [string]$list.SelectedItem.Tag }
+    $list.Items.Clear()
+    foreach ($p in @(Get-UTStretchedPresets)) {
+        $flags = @()
+        if ($p.Valorant) { $flags += 'VALORANT ok' } else { $flags += 'Fortnite only' }
+        if ($p.Offered) { $flags += 'already listed' } else { $flags += 'will be created' }
+        $item = New-Object System.Windows.Controls.ListBoxItem
+        $item.Content = '{0,-11} {1,-7} {2}' -f $p.Tag, $p.RatioName, ($flags -join ', ')
+        $item.Tag = $p.Tag
+        $item.ToolTip = ('{0} at {1}: {2}. Common in: {3}.{4}' -f $p.RatioName, $p.Tag, $p.Label, $p.Common,
+            $(if ($p.Valorant) { '' } else { ' VALORANT will not take this one: it is either below the 1280x720 minimum the game supports or a ratio its video settings do not offer. Fortnite takes any resolution.' }))
+        [void]$list.Items.Add($item)
+    }
+    foreach ($item in $list.Items) { if ([string]$item.Tag -eq $selected) { $list.SelectedItem = $item } }
+    if (-not $list.SelectedItem -and $list.Items.Count -gt 0) { $list.SelectedIndex = 0 }
+}
+
 function Update-UTStretchedStatus {
     try {
         $d = Get-UTDisplayState
-        $offered = @{}
-        foreach ($m in $d.Modes) { $offered[('{0}x{1}' -f $m.Width, $m.Height)] = $true }
-        foreach ($item in $sync.StretchPresetList.Items) {
-            $base = ([string]$item.Content) -replace '\s+\[.*\]$', ''
-            if ($offered.ContainsKey([string]$item.Tag)) { $item.Content = $base + '   [offered by Windows]' } else { $item.Content = $base }
-        }
+        Update-UTStretchedPresetList
         $mon = @($d.Monitors | ForEach-Object { '{0} ({1})' -f $_.Name, $_.Status }) -join ', '
         if (-not $mon) { $mon = 'none present' }
-        $nv = 'no NVIDIA driver: modes must exist already'
-        if ($d.Nvidia) { $nv = 'NVIDIA driver API available for custom modes' }
+        $nv = 'NO NVIDIA DRIVER: custom modes and the VALORANT route are unavailable'
+        if ($d.Nvidia) { $nv = ('NVIDIA driver ready; custom modes are created at {0} Hz, this panel''s maximum' -f (Get-UTMaxRefresh)) }
         $session = ''
         if ($d.Active) { $session = "`r`nA STRETCHED SESSION IS ACTIVE: Restore desktop puts it back" }
-        $sync.StretchStatusText.Text = ('desktop {0}x{1}@{2}   scaling: {3}   {4}   monitor: {5}{6}' -f $d.Width, $d.Height, $d.Hz, $d.ScalingName, $nv, $mon, $session)
+        $sync.StretchStatusText.Text = ('desktop {0}x{1}@{2}   scaling: {3}   monitor: {4}{5}{6}' -f $d.Width, $d.Height, $d.Hz, $d.ScalingName, $mon, "`r`n$nv", $session)
     } catch { $sync.StretchStatusText.Text = 'display state unavailable: ' + $_.Exception.Message }
 }
 
@@ -6389,18 +6457,18 @@ $sync.configs.simple = @'
 
 $sync.configs.stretched = @'
 {
-  "Presets": [
-    { "Width": 1440, "Height": 1080, "Label": "1440x1080  (4:3, the classic stretched)", "Custom": true },
-    { "Width": 1600, "Height": 1080, "Label": "1600x1080  (most common in FNCS lobbies)", "Custom": true },
-    { "Width": 1728, "Height": 1080, "Label": "1728x1080  (16:10, mild stretch)", "Custom": true },
-    { "Width": 1680, "Height": 1080, "Label": "1680x1080  (mild stretch)", "Custom": true },
-    { "Width": 1280, "Height": 960,  "Label": "1280x960   (4:3, exists on every monitor, no custom mode)", "Custom": false },
-    { "Width": 1024, "Height": 768,  "Label": "1024x768   (4:3, exists on every monitor, no custom mode)", "Custom": false }
+  "Ratios": [
+    { "Name": "4:3",   "Ratio": 1.333333, "Label": "widest player models, the most popular competitive pick", "Valorant": true,  "Common": "Fortnite, VALORANT, CS2" },
+    { "Name": "5:4",   "Ratio": 1.250000, "Label": "wider still than 4:3, the old 1280x1024 shape",           "Valorant": true,  "Common": "VALORANT, CS2" },
+    { "Name": "40:27", "Ratio": 1.481481, "Label": "the mid-range stretch most Fortnite pros land on",        "Valorant": false, "Common": "Fortnite" },
+    { "Name": "14:9",  "Ratio": 1.555556, "Label": "mild stretch that keeps detail; common in VALORANT",      "Valorant": true,  "Common": "VALORANT" },
+    { "Name": "43:27", "Ratio": 1.592593, "Label": "subtle stretch, sharper than 4:3",                        "Valorant": false, "Common": "Fortnite" },
+    { "Name": "16:10", "Ratio": 1.600000, "Label": "the gentlest stretch, closest to native",                 "Valorant": true,  "Common": "Fortnite, VALORANT" }
   ],
   "Games": {
     "None":     { "Content": "Desktop only (I will start the game myself)" },
     "Fortnite": { "Content": "Fortnite: write the resolution into GameUserSettings.ini and launch through Epic" },
-    "Valorant": { "Content": "VALORANT: write the resolution, disable the monitor device so the game cannot lock to 16:9, launch through Riot" }
+    "Valorant": { "Content": "VALORANT: disable the monitor so the game accepts the resolution, then launch through Riot" }
   }
 }
 '@ | ConvertFrom-Json
@@ -8197,14 +8265,14 @@ $inputXML = @'
           <TabItem Header="STRETCHED">
             <ScrollViewer VerticalScrollBarVisibility="Auto">
               <StackPanel Margin="8,4,8,16">
-                <TextBlock Text="True stretched resolution" Style="{StaticResource SectionHeader}" ToolTip="True stretched means the display mode itself changes and the GPU scaler fills the screen, so the game renders fewer pixels and nothing is letterboxed. This tab creates the mode through the NVIDIA driver's own API when Windows does not already offer it, switches the desktop, sets Windows display scaling to Stretched (the SetDisplayConfig API, saved for that mode), writes the game's resolution, launches it, and puts everything back when it closes. If your GPU still shows black bars, set Full-screen scaling once in its control panel (NVIDIA: Adjust desktop size and position > Full-screen, perform scaling on GPU); that is a per-driver setting no app can force for every vendor. VALORANT locks fullscreen to the monitor's native aspect ratio, so for it the monitor device is disabled while the game runs and re-enabled afterwards."/>
+                <TextBlock Text="True stretched resolution  (NVIDIA only)" Style="{StaticResource SectionHeader}" ToolTip="True stretched means the display mode itself changes and the GPU scaler fills the screen, so the game renders fewer pixels and nothing is letterboxed. This tab creates the mode through the NVIDIA driver's own API when Windows does not already offer it, always at the panel's highest refresh rate, switches the desktop, sets Windows display scaling to Stretched, writes the game's resolution and launches it, then puts everything back when the game closes. VALORANT only lists resolutions the monitor reports through its EDID, so the monitor device is disabled for the duration: that is what lets the game take a custom mode in real Fullscreen instead of Windowed Fullscreen, where stretched does not apply at all. If your GPU still shows black bars, set Full-screen scaling once in NVIDIA Control Panel under Adjust desktop size and position. Fortnite takes any resolution. Epic locks its own sanctioned tournament lobbies to 16:9, so this is for casual and ranked play."/>
                 <TextBlock Name="StretchStatusText" Style="{StaticResource Body}" Text="reading display..."/>
                 <Grid Margin="8,4,8,0">
                   <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/><ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="3*"/><ColumnDefinition Width="2*"/>
                   </Grid.ColumnDefinitions>
-                  <ListBox Name="StretchPresetList" Grid.Column="0" Height="130"/>
-                  <ListBox Name="StretchGameList" Grid.Column="1" Height="130" Margin="8,0,0,0"/>
+                  <ListBox Name="StretchPresetList" Grid.Column="0" Height="196"/>
+                  <ListBox Name="StretchGameList" Grid.Column="1" Height="196" Margin="8,0,0,0"/>
                 </Grid>
                 <DockPanel Margin="8,6,8,0">
                   <TextBlock Text="custom: " VerticalAlignment="Center" Foreground="#858585"/>

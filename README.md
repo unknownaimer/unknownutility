@@ -66,14 +66,21 @@ and `RiotUserSettings.ini` (the quality groups the Video menu shows), each backe
 game closed. Riot documents editing these files as allowed; Vanguard bans injected code, not user
 settings. Launch through the Riot client and clear the shader caches from the same tab.
 
-**STRETCHED tab**: true stretched resolution with no third-party tool. It creates the display mode
-through the NVIDIA driver's own API when Windows does not already offer it (the same thing NVIDIA
-Control Panel's "Create Custom Resolution" does), switches the desktop, sets Windows display scaling
-to stretched, writes the game's resolution and launches it, then puts the desktop, the scaling and
-the monitor device back when the game closes. VALORANT reads the monitor's native aspect ratio from
-its EDID and locks fullscreen to it, so for VALORANT the monitor device is disabled while the game
-runs and re-enabled afterwards. Everything it changes is recorded to a state file before the first
-step, so a crash mid-session is repaired at the next start.
+**STRETCHED tab** (NVIDIA only): true stretched resolution with no third-party tool. It shows a table
+of the stretched modes worth using on *your* panel - every ratio at 1080 high, plus at your own
+height if it is taller, so a 1440p owner gets 1920x1440 rather than being pushed down to 1080p - and
+each row says whether VALORANT will take it and whether Windows already lists the mode. It creates
+the mode through the NVIDIA driver's own API (the same thing NVIDIA Control Panel's "Create Custom
+Resolution" does), always at your panel's highest refresh rate, switches the desktop, sets Windows
+scaling to stretched, writes the game's resolution and launches it, then puts the desktop, the
+scaling and the monitor device back when the game closes.
+
+VALORANT builds its resolution list from what the monitor reports through its EDID, so a custom mode
+is invisible to it. The tool disables the monitor device for the duration, which is what lets the
+game take the resolution in real **Fullscreen** - in Windowed Fullscreen stretched does not apply at
+all. Fortnite takes any resolution. Epic locks its own sanctioned tournament lobbies to 16:9, so
+this is for casual and ranked play. Everything is recorded to a state file before the first step, so
+a crash mid-session is repaired at the next start.
 
 **GAME READY tab**: pick the game you are about to play and close everything in your session that is
 not it, not its launcher, and not Windows. The never-touch list is code, not config: Windows itself,

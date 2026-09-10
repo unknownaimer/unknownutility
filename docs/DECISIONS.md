@@ -697,3 +697,64 @@ template used `Name` where WPF templates need `x:Name`, which broke the named-co
 and at 1280 px the "Undo everything" button overlapped the restore-point checkbox, fixed by
 shortening that label and moving its explanation into a tooltip. Worth remembering that the startup
 test builds the window but never looks at it - only a screenshot catches overlap.
+
+## 17. The stretched resolution table (2026-09-10)
+
+Three corrections and one addition to s14's stretched work, after checking how VALORANT actually
+picks its resolution list.
+
+### Why VALORANT needs the monitor disabled, precisely
+
+VALORANT does not "lock to the monitor's native aspect ratio" as s14 put it. It builds its
+resolution list from **what the monitor reports through its EDID**, so a custom mode the driver
+created is simply not in the list. Disabling the monitor device removes the EDID, the list falls
+back to the driver's modes, and the custom resolution becomes selectable. This also only works in
+real **Fullscreen**: in Windowed Fullscreen the game renders at the desktop mode and stretched never
+applies. Both points are documented by the guides that do this by hand, and both match what the tool
+already does - the description was the part that was wrong. (H.)
+
+The route is now refused outright on non-NVIDIA hardware rather than half-working: creating the mode
+needs the driver API, and hiding the monitor from the game is only reasonable while the NVIDIA
+driver is still the thing driving the panel.
+
+### Highest refresh rate, always
+
+`Add-UTCustomMode` used to create the mode at the *current desktop* refresh rate. On anyone who had
+dropped to 60 Hz, that baked 60 Hz into the stretched mode - the worst possible outcome for the
+person doing this for competitive reasons. It now asks for `Get-UTMaxRefresh`, the highest rate the
+panel offers at any resolution, and the driver times the custom mode from that. `Get-UTBestRefresh`
+likewise takes the highest rate listed for the target mode rather than preferring the current one.
+
+### A generated table instead of a fixed list
+
+The tab used to carry six hardcoded 1080-high resolutions. It now generates the table from aspect
+**ratios** against the heights that make sense on the attached panel - 1080 always, plus the panel's
+own height when it is taller - so a 1440p or 4K owner gets 1920x1440 or 2880x2160 for the same 4:3
+shape instead of being pushed down to 1080p. Widths are rounded to an even number, and any candidate
+at least as wide as the panel is dropped, since that is not a stretch.
+
+The ratios shipped, and where each is established: 4:3 (1440x1080 - the widest models, the most
+common pick in Fortnite, VALORANT and CS2), 5:4, 40:27 (1600x1080, the Fortnite mid-range), 14:9
+(1680x1080, common in VALORANT), 43:27 (1720x1080) and 16:10 (1728x1080). On the dev machine this
+produces exactly the resolutions in use there, including the 1680x1080 and 1720x1080 that were
+already custom modes on that box.
+
+### The VALORANT column
+
+Each row says whether VALORANT will take it. The flag is a ratio the game's own video settings
+offer, **and** the resulting mode being at or above VALORANT's 1280x720 minimum - a test caught that
+4:3 on a 720p panel is 960x720 and must therefore lose the flag, which the generator gets right.
+Fortnite is not flagged because it takes any resolution. Rows also say whether Windows already lists
+the mode or whether the tool will create it.
+
+One thing said plainly in the tab that the guides tend to leave out: **Epic locks its own sanctioned
+tournament lobbies to 16:9**, so stretched is for casual and ranked play. Epic first enforced this in
+2019 for the World Cup qualifiers, and no rulebook since has restricted it outside those lobbies.
+
+### Sources
+
+- ProSettings, true stretched resolution in VALORANT without external programs (the Device Manager
+  method, and the Fullscreen requirement): <https://www.prosettings.gg/blog/true-stretched-resolution-in-valorant/>
+- Tier1Settings and thespike.gg on the VALORANT stretched picks in use (1280x960, 1440x1080, 1680x1050)
+- Reporting on Epic's 2019 competitive 16:9 enforcement (Kotaku, Dexerto)
+- The dev machine's own mode list and custom modes, 2026-09-10

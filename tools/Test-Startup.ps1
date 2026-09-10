@@ -225,7 +225,10 @@ try {
     Assert ($unhandled.Count -eq 0) ("every button has a case in Invoke-UTButton" + $(if ($unhandled) { ': ' + ($unhandled -join ', ') } else { '' }))
 
     Assert ($sync.VaProfileList.Items.Count -eq @($sync.configs.valorant.Profiles.PSObject.Properties).Count) 'a list item for each VALORANT profile'
-    Assert ($sync.StretchPresetList.Items.Count -eq @($sync.configs.stretched.Presets).Count) 'a list item for each stretched preset'
+    $stretchRows = @(Get-UTStretchedPresets)
+    Assert ($sync.StretchPresetList.Items.Count -eq $stretchRows.Count) "a row for each of the $($stretchRows.Count) stretched modes this monitor can take"
+    Assert (@($stretchRows | Where-Object { $_.Width -ge 1920 }).Count -eq 0) 'no row is as wide as the panel, so every one of them is a stretch'
+    Assert (@($stretchRows | Where-Object { $_.Valorant -and ($_.Width -lt 1280 -or $_.Height -lt 720) }).Count -eq 0) 'no row claims VALORANT support below the game minimum'
     Assert ($sync.StretchGameList.Items.Count -eq 3) 'the three stretched targets are listed'
     Assert ($sync.StretchStatusText.Text -match '\d+x\d+') "the STRETCHED tab shows the current mode ($($sync.StretchStatusText.Text))"
     Assert ($sync.gameReadyBoxes.Count -gt 0) "the GAME READY tab lists $($sync.gameReadyBoxes.Count) closable processes"

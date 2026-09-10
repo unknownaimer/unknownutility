@@ -60,12 +60,7 @@ function Update-UTValorantStatus {
 }
 
 function Initialize-UTStretchedTab {
-    foreach ($p in @($sync.configs.stretched.Presets)) {
-        $item = New-Object System.Windows.Controls.ListBoxItem
-        $item.Content = [string]$p.Label
-        $item.Tag = ('{0}x{1}' -f $p.Width, $p.Height)
-        [void]$sync.StretchPresetList.Items.Add($item)
-    }
+    Update-UTStretchedPresetList
     foreach ($g in $sync.configs.stretched.Games.PSObject.Properties) {
         $item = New-Object System.Windows.Controls.ListBoxItem
         $item.Content = [string]$g.Value.Content
@@ -77,22 +72,42 @@ function Initialize-UTStretchedTab {
     Update-UTStretchedStatus
 }
 
+function Update-UTStretchedPresetList {
+    <#
+    .SYNOPSIS
+        Rebuilds the resolution table for this monitor: one row per ratio per usable height, with the
+        aspect, whether Windows already lists it, and whether VALORANT will take it.
+    #>
+    $list = $sync.StretchPresetList
+    $selected = ''
+    if ($list.SelectedItem) { $selected = [string]$list.SelectedItem.Tag }
+    $list.Items.Clear()
+    foreach ($p in @(Get-UTStretchedPresets)) {
+        $flags = @()
+        if ($p.Valorant) { $flags += 'VALORANT ok' } else { $flags += 'Fortnite only' }
+        if ($p.Offered) { $flags += 'already listed' } else { $flags += 'will be created' }
+        $item = New-Object System.Windows.Controls.ListBoxItem
+        $item.Content = '{0,-11} {1,-7} {2}' -f $p.Tag, $p.RatioName, ($flags -join ', ')
+        $item.Tag = $p.Tag
+        $item.ToolTip = ('{0} at {1}: {2}. Common in: {3}.{4}' -f $p.RatioName, $p.Tag, $p.Label, $p.Common,
+            $(if ($p.Valorant) { '' } else { ' VALORANT will not take this one: it is either below the 1280x720 minimum the game supports or a ratio its video settings do not offer. Fortnite takes any resolution.' }))
+        [void]$list.Items.Add($item)
+    }
+    foreach ($item in $list.Items) { if ([string]$item.Tag -eq $selected) { $list.SelectedItem = $item } }
+    if (-not $list.SelectedItem -and $list.Items.Count -gt 0) { $list.SelectedIndex = 0 }
+}
+
 function Update-UTStretchedStatus {
     try {
         $d = Get-UTDisplayState
-        $offered = @{}
-        foreach ($m in $d.Modes) { $offered[('{0}x{1}' -f $m.Width, $m.Height)] = $true }
-        foreach ($item in $sync.StretchPresetList.Items) {
-            $base = ([string]$item.Content) -replace '\s+\[.*\]$', ''
-            if ($offered.ContainsKey([string]$item.Tag)) { $item.Content = $base + '   [offered by Windows]' } else { $item.Content = $base }
-        }
+        Update-UTStretchedPresetList
         $mon = @($d.Monitors | ForEach-Object { '{0} ({1})' -f $_.Name, $_.Status }) -join ', '
         if (-not $mon) { $mon = 'none present' }
-        $nv = 'no NVIDIA driver: modes must exist already'
-        if ($d.Nvidia) { $nv = 'NVIDIA driver API available for custom modes' }
+        $nv = 'NO NVIDIA DRIVER: custom modes and the VALORANT route are unavailable'
+        if ($d.Nvidia) { $nv = ('NVIDIA driver ready; custom modes are created at {0} Hz, this panel''s maximum' -f (Get-UTMaxRefresh)) }
         $session = ''
         if ($d.Active) { $session = "`r`nA STRETCHED SESSION IS ACTIVE: Restore desktop puts it back" }
-        $sync.StretchStatusText.Text = ('desktop {0}x{1}@{2}   scaling: {3}   {4}   monitor: {5}{6}' -f $d.Width, $d.Height, $d.Hz, $d.ScalingName, $nv, $mon, $session)
+        $sync.StretchStatusText.Text = ('desktop {0}x{1}@{2}   scaling: {3}   monitor: {4}{5}{6}' -f $d.Width, $d.Height, $d.Hz, $d.ScalingName, $mon, "`r`n$nv", $session)
     } catch { $sync.StretchStatusText.Text = 'display state unavailable: ' + $_.Exception.Message }
 }
 

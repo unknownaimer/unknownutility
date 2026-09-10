@@ -42,12 +42,60 @@ function Test-UTDisplayMode {
     return $false
 }
 
+function Get-UTMaxRefresh {
+    <#
+    .SYNOPSIS
+        The highest refresh rate this panel offers at any resolution.
+    .DESCRIPTION
+        A stretched mode is worth nothing at 60 Hz on a 240 Hz monitor, and a custom mode is timed by
+        the driver from whatever rate is asked for, so the panel's maximum is what to ask for.
+    #>
+    $rates = @([UT.NativeV1.Display]::EnumModes() | ForEach-Object { [int]$_.Hz })
+    if ($rates.Count -eq 0) { return 60 }
+    return ($rates | Sort-Object -Descending)[0]
+}
+
 function Get-UTBestRefresh {
-    param([int]$Width, [int]$Height, [int]$Prefer)
+    <#
+    .SYNOPSIS
+        The highest refresh Windows lists for this exact mode, falling back to the panel's maximum.
+    #>
+    param([int]$Width, [int]$Height)
     $rates = @([UT.NativeV1.Display]::EnumModes() | Where-Object { $_.Width -eq $Width -and $_.Height -eq $Height } | ForEach-Object { [int]$_.Hz })
-    if ($rates -contains $Prefer) { return $Prefer }
     if ($rates.Count -gt 0) { return ($rates | Sort-Object -Descending)[0] }
-    return $Prefer
+    return (Get-UTMaxRefresh)
+}
+
+function Get-UTStretchedPresets {
+    <#
+    .SYNOPSIS
+        The stretched modes worth offering on this monitor: every ratio from config/stretched.json at
+        every sensible vertical resolution, with whether Windows already lists it and whether VALORANT
+        will take it.
+    .DESCRIPTION
+        Heights are 1080 (fewer pixels, the reason most people do this) plus the panel's own height
+        when it is taller, so a 1440p or 4K owner can stretch without dropping to 1080p. Widths are
+        rounded to an even number because odd widths upset some timings. VALORANT will not go below
+        its minimum supported resolution of 1280x720 whatever the monitor reports, so anything under
+        that is marked as Fortnite-only.
+    #>
+    $cur = [UT.NativeV1.Display]::GetCurrent()
+    $heights = New-Object System.Collections.Generic.List[int]
+    foreach ($h in @(1080, [int]$cur.Height)) { if ($h -ge 720 -and -not $heights.Contains($h)) { [void]$heights.Add($h) } }
+    $out = New-Object System.Collections.Generic.List[object]
+    foreach ($h in ($heights | Sort-Object)) {
+        foreach ($r in @($sync.configs.stretched.Ratios)) {
+            $w = [int]([math]::Round(($h * [double]$r.Ratio) / 2.0) * 2)
+            if ($w -ge [int]$cur.Width) { continue }
+            $out.Add([pscustomobject]@{
+                Width = $w; Height = $h; Tag = ('{0}x{1}' -f $w, $h)
+                RatioName = [string]$r.Name; Label = [string]$r.Label; Common = [string]$r.Common
+                Valorant = ([bool]$r.Valorant -and $w -ge 1280 -and $h -ge 720)
+                Offered = (Test-UTDisplayMode -Width $w -Height $h)
+            })
+        }
+    }
+    return $out.ToArray()
 }
 
 function Add-UTCustomMode {
@@ -61,7 +109,9 @@ function Add-UTCustomMode {
     if (-not [UT.NativeV1.NvApi]::IsAvailable()) {
         throw ("{0}x{1} is not offered by Windows and this PC has no NVIDIA driver to create it with. Add it in your GPU's control panel (AMD: Display > Custom Resolutions; Intel: Display > Custom) and try again." -f $Width, $Height)
     }
-    if ($Hz -le 0) { $Hz = [UT.NativeV1.Display]::GetCurrent().Hz }
+    # Always ask for the panel's top refresh rate: a stretched mode at 60 Hz on a high-refresh monitor
+    # is worse than not doing it at all, and the driver times a custom mode from whatever we ask for.
+    if ($Hz -le 0) { $Hz = Get-UTMaxRefresh }
     $r = [UT.NativeV1.NvApi]::AddMode($Width, $Height, $Hz)
     if ($r -ne 'ok') {
         throw ("The NVIDIA driver refused to create {0}x{1}@{2}: {3}. Create it once by hand in NVIDIA Control Panel > Change resolution > Customize > Create Custom Resolution, then this tool can use it." -f $Width, $Height, $Hz, $r)
@@ -125,13 +175,16 @@ function Start-UTStretched {
     param([Parameter(Mandatory = $true)][int]$Width, [Parameter(Mandatory = $true)][int]$Height, [string]$Game = 'None')
     if (Test-UTStretchedState) { throw 'A stretched session is already active. Press Restore desktop first.' }
     if (-not ('UT.NativeV1.Display' -as [type])) { throw 'The native display helper is not available on this PC' }
+    if ($Game -eq 'Valorant' -and -not [UT.NativeV1.NvApi]::IsAvailable()) {
+        throw 'The VALORANT route is NVIDIA only: it needs the driver API to create the mode, and hiding the monitor from the game is only safe when the NVIDIA driver is the one still driving the panel.'
+    }
     $cur = [UT.NativeV1.Display]::GetCurrent()
     $state = [ordered]@{ Width = $cur.Width; Height = $cur.Height; Hz = $cur.Hz; Scaling = [int][UT.NativeV1.Display]::GetScaling(); Monitors = @(); Game = $Game; Started = (Get-Date).ToString('s') }
     $statePath = Get-UTStretchedStatePath
     ([pscustomobject]$state) | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $statePath -Encoding ASCII
     try {
-        [void](Add-UTCustomMode -Width $Width -Height $Height -Hz $cur.Hz)
-        $hz = Get-UTBestRefresh -Width $Width -Height $Height -Prefer $cur.Hz
+        [void](Add-UTCustomMode -Width $Width -Height $Height -Hz (Get-UTMaxRefresh))
+        $hz = Get-UTBestRefresh -Width $Width -Height $Height
         Write-UTStretchedGameConfig -Game $Game -Width $Width -Height $Height
         if ($Game -eq 'Valorant') {
             foreach ($m in (Get-UTMonitorDevices | Where-Object { $_.Status -eq 'OK' })) {

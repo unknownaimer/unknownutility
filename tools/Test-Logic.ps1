@@ -225,9 +225,27 @@ Assert (@($cands | Group-Object Name | Where-Object { $_.Count -gt 1 }).Count -e
 
 Write-Host "stretched presets"
 $sp = $sync.configs.stretched
-$badPreset = @($sp.Presets | Where-Object { $_.Width -le 0 -or $_.Height -le 0 -or $_.Width -gt 7680 -or ($_.Width / $_.Height) -ge 1.7 })
-Assert ($badPreset.Count -eq 0) "every preset is a real stretched shape (narrower than 16:9)"
+$badRatio = @($sp.Ratios | Where-Object { [double]$_.Ratio -le 1.0 -or [double]$_.Ratio -ge 1.7777 -or -not $_.Name -or -not $_.Label })
+Assert ($badRatio.Count -eq 0) "every ratio is a real stretched shape (narrower than 16:9) and is described"
 Assert (@($sp.Games.PSObject.Properties.Name) -contains 'Fortnite' -and @($sp.Games.PSObject.Properties.Name) -contains 'Valorant' -and @($sp.Games.PSObject.Properties.Name) -contains 'None') 'the three stretched targets exist'
+# The generated table is what the tab shows, so check the arithmetic rather than the config.
+$sp1080 = @($sp.Ratios | ForEach-Object { [int]([math]::Round((1080 * [double]$_.Ratio) / 2.0) * 2) })
+Assert ($sp1080 -contains 1440 -and $sp1080 -contains 1600 -and $sp1080 -contains 1680 -and $sp1080 -contains 1720 -and $sp1080 -contains 1728) `
+    ("the 1080-high row generates the resolutions people actually use: " + (($sp1080 | Sort-Object) -join ', '))
+Assert (@($sp1080 | Where-Object { $_ % 2 -ne 0 }).Count -eq 0) 'every generated width is even'
+# VALORANT refuses anything under its minimum supported resolution whatever the monitor claims.
+$vRatios = @($sp.Ratios | Where-Object { $_.Valorant })
+Assert ($vRatios.Count -ge 3) "$($vRatios.Count) ratios are marked as VALORANT picks"
+# The rule the generator applies: a ratio marked for VALORANT still loses the flag when the
+# resolution it produces falls under the game's 1280x720 minimum, which happens on short panels.
+$vRule = { param($r, $h) $w = [int]([math]::Round(($h * [double]$r.Ratio) / 2.0) * 2); return ([bool]$r.Valorant -and $w -ge 1280 -and $h -ge 720) }
+foreach ($h in 1080, 1440, 2160) {
+    $under = @($vRatios | Where-Object { -not (& $vRule $_ $h) })
+    Assert ($under.Count -eq 0) "every VALORANT pick clears the 1280x720 minimum at ${h}p"
+}
+$fourThree = @($sp.Ratios | Where-Object { $_.Name -eq '4:3' })[0]
+Assert (-not (& $vRule $fourThree 720)) 'on a 720p panel 4:3 is 960 wide, so the VALORANT flag is withdrawn'
+Assert ((& $vRule $fourThree 1080)) 'on a 1080p panel the same ratio keeps it'
 
 Write-Host "recommendations"
 $sync.sysinfo = [pscustomobject]@{ VBSStatus = 2; HVCIRunning = $true; IsLaptop = $true; DiskType = 'HDD'; GPUVendor = 'NVIDIA'; GPU = 'NVIDIA GeForce RTX 3060'; Is11 = $true; Build = 22631; CPU = 'AMD Ryzen 7 7800X3D'; RamGB = 16 }

@@ -1,15 +1,15 @@
 {
-  "Presets": [
-    { "Width": 1440, "Height": 1080, "Label": "1440x1080  (4:3, the classic stretched)", "Custom": true },
-    { "Width": 1600, "Height": 1080, "Label": "1600x1080  (most common in FNCS lobbies)", "Custom": true },
-    { "Width": 1728, "Height": 1080, "Label": "1728x1080  (16:10, mild stretch)", "Custom": true },
-    { "Width": 1680, "Height": 1080, "Label": "1680x1080  (mild stretch)", "Custom": true },
-    { "Width": 1280, "Height": 960,  "Label": "1280x960   (4:3, exists on every monitor, no custom mode)", "Custom": false },
-    { "Width": 1024, "Height": 768,  "Label": "1024x768   (4:3, exists on every monitor, no custom mode)", "Custom": false }
+  "Ratios": [
+    { "Name": "4:3",   "Ratio": 1.333333, "Label": "widest player models, the most popular competitive pick", "Valorant": true,  "Common": "Fortnite, VALORANT, CS2" },
+    { "Name": "5:4",   "Ratio": 1.250000, "Label": "wider still than 4:3, the old 1280x1024 shape",           "Valorant": true,  "Common": "VALORANT, CS2" },
+    { "Name": "40:27", "Ratio": 1.481481, "Label": "the mid-range stretch most Fortnite pros land on",        "Valorant": false, "Common": "Fortnite" },
+    { "Name": "14:9",  "Ratio": 1.555556, "Label": "mild stretch that keeps detail; common in VALORANT",      "Valorant": true,  "Common": "VALORANT" },
+    { "Name": "43:27", "Ratio": 1.592593, "Label": "subtle stretch, sharper than 4:3",                        "Valorant": false, "Common": "Fortnite" },
+    { "Name": "16:10", "Ratio": 1.600000, "Label": "the gentlest stretch, closest to native",                 "Valorant": true,  "Common": "Fortnite, VALORANT" }
   ],
   "Games": {
     "None":     { "Content": "Desktop only (I will start the game myself)" },
     "Fortnite": { "Content": "Fortnite: write the resolution into GameUserSettings.ini and launch through Epic" },
-    "Valorant": { "Content": "VALORANT: write the resolution, disable the monitor device so the game cannot lock to 16:9, launch through Riot" }
+    "Valorant": { "Content": "VALORANT: disable the monitor so the game accepts the resolution, then launch through Riot" }
   }
 }

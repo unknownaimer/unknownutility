@@ -635,14 +635,14 @@
           <TabItem Header="STRETCHED">
             <ScrollViewer VerticalScrollBarVisibility="Auto">
               <StackPanel Margin="8,4,8,16">
-                <TextBlock Text="True stretched resolution" Style="{StaticResource SectionHeader}" ToolTip="True stretched means the display mode itself changes and the GPU scaler fills the screen, so the game renders fewer pixels and nothing is letterboxed. This tab creates the mode through the NVIDIA driver's own API when Windows does not already offer it, switches the desktop, sets Windows display scaling to Stretched (the SetDisplayConfig API, saved for that mode), writes the game's resolution, launches it, and puts everything back when it closes. If your GPU still shows black bars, set Full-screen scaling once in its control panel (NVIDIA: Adjust desktop size and position > Full-screen, perform scaling on GPU); that is a per-driver setting no app can force for every vendor. VALORANT locks fullscreen to the monitor's native aspect ratio, so for it the monitor device is disabled while the game runs and re-enabled afterwards."/>
+                <TextBlock Text="True stretched resolution  (NVIDIA only)" Style="{StaticResource SectionHeader}" ToolTip="True stretched means the display mode itself changes and the GPU scaler fills the screen, so the game renders fewer pixels and nothing is letterboxed. This tab creates the mode through the NVIDIA driver's own API when Windows does not already offer it, always at the panel's highest refresh rate, switches the desktop, sets Windows display scaling to Stretched, writes the game's resolution and launches it, then puts everything back when the game closes. VALORANT only lists resolutions the monitor reports through its EDID, so the monitor device is disabled for the duration: that is what lets the game take a custom mode in real Fullscreen instead of Windowed Fullscreen, where stretched does not apply at all. If your GPU still shows black bars, set Full-screen scaling once in NVIDIA Control Panel under Adjust desktop size and position. Fortnite takes any resolution. Epic locks its own sanctioned tournament lobbies to 16:9, so this is for casual and ranked play."/>
                 <TextBlock Name="StretchStatusText" Style="{StaticResource Body}" Text="reading display..."/>
                 <Grid Margin="8,4,8,0">
                   <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/><ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="3*"/><ColumnDefinition Width="2*"/>
                   </Grid.ColumnDefinitions>
-                  <ListBox Name="StretchPresetList" Grid.Column="0" Height="130"/>
-                  <ListBox Name="StretchGameList" Grid.Column="1" Height="130" Margin="8,0,0,0"/>
+                  <ListBox Name="StretchPresetList" Grid.Column="0" Height="196"/>
+                  <ListBox Name="StretchGameList" Grid.Column="1" Height="196" Margin="8,0,0,0"/>
                 </Grid>
                 <DockPanel Margin="8,6,8,0">
                   <TextBlock Text="custom: " VerticalAlignment="Center" Foreground="#858585"/>
