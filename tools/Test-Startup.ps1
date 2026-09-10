@@ -205,6 +205,17 @@ try {
     $missingStyles = @($styleKeys | Where-Object { $null -eq $sync.form.TryFindResource($_) })
     Assert ($missingStyles.Count -eq 0) ("window resources resolve" + $(if ($missingStyles) { ': missing ' + ($missingStyles -join ', ') } else { '' }))
 
+    # The window icon travels as base64 inside the script, so a bad regeneration would show up only
+    # as a blank taskbar button at runtime. Decode it and hand it to the Window as start.ps1 does.
+    $icon = Get-UTAppIcon
+    Assert ($icon -is [System.Windows.Media.Imaging.BitmapFrame]) 'the embedded app icon decodes'
+    if ($icon) {
+        $iconSizes = @($icon.Decoder.Frames | ForEach-Object { $_.PixelWidth } | Sort-Object)
+        Assert (($iconSizes -join ',') -eq '16,24,32,48') ("the icon carries the sizes WPF asks for (got $($iconSizes -join ','))")
+        $sync.form.Icon = $icon
+        Assert ($null -ne $sync.form.Icon) 'the window accepts it'
+    }
+
     Write-Host 'building the dynamic UI'
     Initialize-UTUI
     Assert ($sync.CreditText.Text -eq ('MADE BY ' + (Get-UTCredits).Author)) "the bottom bar carries the credit ($($sync.CreditText.Text))"

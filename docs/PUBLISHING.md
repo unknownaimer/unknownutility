@@ -127,17 +127,32 @@ That compiles the script and wraps it into `unknowntweaks.exe` next to it. The e
 launcher with `unknowntweaks.ps1` embedded as a resource: on run it writes the script to
 `%LOCALAPPDATA%\unknowntweaks\app` and starts Windows PowerShell 5.1 on it.
 
-Two things about how it is built:
+Three things about how it is built:
 
 * The script goes to a **stable path**, not a temp file deleted on exit. unknowntweaks relaunches
   itself elevated by re-running its own file, so a file deleted when the first process exits would
   be gone before the elevated run could read it.
 * The exe carries a manifest requesting administrator, so testers get **one** UAC prompt from the
   exe rather than a second one when the script relaunches itself.
+* `assets/icon.ico` becomes its Win32 icon. Without one the exe wears the generic
+  console-application icon, which is the last thing a downloaded file should look like. Run
+  `.\tools\New-UTIcon.ps1` after changing the artwork.
 
 It is built with the C# compiler that ships inside the .NET Framework, so nothing is downloaded and
 no third-party packer is involved. The exe is a build artifact and `.gitignore` keeps it out of the
 repository; attach it to a GitHub release instead of committing it.
+
+### It is standalone
+
+Everything the tool is lives inside the exe: the whole compiled script, every config, the window and
+the icon. Nothing is fetched at start-up. A public build carries no `statusUrl`, so there is no gate
+to answer to either, and the elevated relaunch re-runs the extracted file rather than re-downloading
+anything. The only things it needs from the machine are `powershell.exe` 5.1 and .NET Framework 4.x,
+both of which ship in every Windows 10 and 11 install.
+
+The tool does reach the network when a tester asks it to - the Epic status check, the region ping
+test, and `winget` when installing apps - and those are the only features that need it. Offline, the
+window still opens and the tweaks still apply.
 
 ### What testers will see, and what to tell them
 

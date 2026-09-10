@@ -131,6 +131,9 @@ $UTXaml.SelectNodes('//*[@Name]') | ForEach-Object {
     $sync[$n] = $sync.form.FindName($n)
 }
 
+$UTIcon = Get-UTAppIcon
+if ($UTIcon) { try { $sync.form.Icon = $UTIcon } catch { } }
+
 if ($UTNative) {
     $sync.form.Add_SourceInitialized({
         try {

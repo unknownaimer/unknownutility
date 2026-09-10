@@ -252,6 +252,7 @@ config/      tweaks.json, fortnite.json, dns.json, gameservers.json, games.json,
 functions/   one function per file; private/ helpers, public/ UI
 xaml/        the window
 scripts/     start.ps1, the entry point
+assets/      icon.png, the artwork; icon.ico is generated from it
 tools/       Test-Syntax.ps1 (static), Test-Logic.ps1 (behaviour), Test-Startup.ps1 (the real window)
 ```
 
@@ -287,6 +288,12 @@ off-screen for a moment, or `-SkipNetwork` on a machine with no internet.
 `Compile.ps1` bakes the account and repository name into the file (used only when the tool
 re-launches itself elevated). They default to `unknownaimer/unknownutility`; pass `-Owner` and
 `-Repo` to build for another.
+
+To change the icon, replace `assets/icon.png` with new square artwork and run
+`.\tools\New-UTIcon.ps1`. It resamples every size the shell asks for into `assets/icon.ico`, which
+`tools\Build-Exe.ps1` compiles into the exe, and regenerates
+`functions/private/Get-UTAppIcon.ps1`, the small copy the running window carries so the taskbar
+button has it even when the tool arrived through the one-liner with no file on disk.
 
 ## Requirements
 

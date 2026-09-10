@@ -125,8 +125,13 @@ static class Launcher {
         ('/out:' + $OutFile)
         ('/win32manifest:' + $manifestPath)
         ('/resource:' + $script + ',script')
-        $sourcePath
     )
+    # Without an icon the exe inherits the generic console-application one, which is what a file
+    # people were told to download least wants to look like. Rebuild it with tools/New-UTIcon.ps1.
+    $icon = Join-Path $root 'assets\icon.ico'
+    if (Test-Path -LiteralPath $icon) { $args += ('/win32icon:' + $icon) }
+    else { Write-Warning 'assets\icon.ico is missing; building without an icon. Run tools\New-UTIcon.ps1.' }
+    $args += $sourcePath
     & $csc $args | Write-Host
     if ($LASTEXITCODE -ne 0) { throw "csc failed with exit code $LASTEXITCODE" }
 

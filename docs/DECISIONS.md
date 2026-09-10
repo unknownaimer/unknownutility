@@ -809,3 +809,47 @@ claim `fills`, and 1680x1080 must come out `non-standard` rather than promised.
 - Tier1Settings, NVIDIA stretched not filling: Full-screen scaling, performed on GPU, and the override checkbox; and that the monitor OSD can override the GPU
 - techbloat, black bars explained: the three-layer hierarchy of game, driver and monitor
 - The per-mode scaling behaviour proved on this machine in s14
+
+## 19. The app icon (2026-09-10)
+
+The artwork is `assets/icon.png`, supplied as 1254x1254 and stored at 512 (twice the largest size an
+icon ever needs, and a third of the file size). `tools/New-UTIcon.ps1` builds everything else from it.
+
+### Every size is resampled, not one bitmap left to Windows
+
+Windows picks a different record out of an `.ico` for every surface it draws: 16 in a title bar, 32
+on the taskbar, 48 in Explorer's medium view, 256 in the extra-large view and Alt-Tab on a high-DPI
+screen. Shipping one bitmap and letting the shell resample it is what makes an icon look muddy, so
+all seven of 16/24/32/48/64/128/256 are resampled from the full-resolution source with
+`HighQualityBicubic`.
+
+### PNG records only at 256
+
+The ICO format has allowed PNG-compressed records at any size since Vista, and the first build used
+PNG from 64 up. Rendering the result proved that wrong: GDI+ - `System.Drawing.Icon`, still behind
+installers, antivirus consoles and plenty of older tooling - decodes a PNG record as though it were a
+DIB and draws confetti. The 16/24/32/48 BMP records rendered correctly in the same test, so the line
+now sits exactly where Windows' own icons put it: BMP below 256, PNG at 256, where a BMP record would
+cost a quarter of a megabyte on its own. `PrivateExtractIcons` against the built exe returns all
+seven sizes at the size asked for.
+
+### The window carries its own copy
+
+`/win32icon` covers the file in Explorer, the taskbar's pinned entry and the download prompt, but not
+the running window: the process is `powershell.exe`, so the taskbar button shows whatever
+`Window.Icon` holds. A script delivered by `irm | iex` has no file on disk beside it to read an icon
+from, so a second, deliberately small `.ico` (16/24/32/48 only, 23 KB of base64, +5% on the
+download) is generated into `functions/private/Get-UTAppIcon.ps1` and compiled in. It hands back a
+frame from an `IconBitmapDecoder` rather than a lone bitmap, because WPF walks that decoder's frames
+and picks per surface instead of resampling one image. It is cosmetic, so every failure path returns
+`$null` and the window simply keeps the PowerShell icon.
+
+`Test-Startup` decodes the embedded copy and assigns it to a real Window, so a bad regeneration
+fails the suite rather than showing up as a blank taskbar button on someone's machine.
+
+### The whitelist got one exception
+
+`.gitignore` ignores `*.png` so a screenshot can never be committed. The icon is a source file, not a
+screenshot - the exe is built from it and the window carries a copy - so `assets/icon.png` and
+`assets/icon.ico` are whitelisted after that rule, where a later negation wins, and `.gitattributes`
+marks `*.ico` binary alongside `*.png` so normalisation never touches them.

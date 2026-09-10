@@ -82,3 +82,10 @@ Thumbs.db
 desktop.ini
 .vscode/
 .idea/
+
+# ---- the one exception to the image rules above -----------------------------------------------
+# The app icon is a source file, not a screenshot: the exe is built from the .ico and the window
+# carries a copy of it. Both are regenerated from the .png by tools/New-UTIcon.ps1.
+!assets/
+!assets/icon.png
+!assets/icon.ico

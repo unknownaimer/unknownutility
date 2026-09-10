@@ -10,7 +10,8 @@
 *.yml  text
 LICENSE text
 
-# Never touch these if they ever appear.
+# Binary assets: the app icon, plus anything else that would be mangled by normalisation.
 *.png  binary
+*.ico  binary
 *.jpg  binary
 *.zip  binary
