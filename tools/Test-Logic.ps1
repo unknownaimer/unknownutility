@@ -234,18 +234,31 @@ Assert ($sp1080 -contains 1440 -and $sp1080 -contains 1600 -and $sp1080 -contain
     ("the 1080-high row generates the resolutions people actually use: " + (($sp1080 | Sort-Object) -join ', '))
 Assert (@($sp1080 | Where-Object { $_ % 2 -ne 0 }).Count -eq 0) 'every generated width is even'
 # VALORANT refuses anything under its minimum supported resolution whatever the monitor claims.
-$vRatios = @($sp.Ratios | Where-Object { $_.Valorant })
-Assert ($vRatios.Count -ge 3) "$($vRatios.Count) ratios are marked as VALORANT picks"
-# The rule the generator applies: a ratio marked for VALORANT still loses the flag when the
-# resolution it produces falls under the game's 1280x720 minimum, which happens on short panels.
-$vRule = { param($r, $h) $w = [int]([math]::Round(($h * [double]$r.Ratio) / 2.0) * 2); return ([bool]$r.Valorant -and $w -ge 1280 -and $h -ge 720) }
-foreach ($h in 1080, 1440, 2160) {
-    $under = @($vRatios | Where-Object { -not (& $vRule $_ $h) })
-    Assert ($under.Count -eq 0) "every VALORANT pick clears the 1280x720 minimum at ${h}p"
+# Riot documents 4:3, 5:4, 16:9, 16:10 and 21:9. Only those are promised to fill; the rest are
+# labelled non-standard rather than refused, because people really do play 1680x1080.
+$documented = @('4:3', '5:4', '16:10')
+$mislabelled = @($sp.Ratios | Where-Object { ([bool]$_.ValorantRatio) -ne ($documented -contains [string]$_.Name) })
+Assert ($mislabelled.Count -eq 0) ("only Riot's documented ratios claim to fill" + $(if ($mislabelled) { ': ' + (($mislabelled | ForEach-Object { $_.Name }) -join ', ') } else { '' }))
+Assert (@($sp.Ratios | Where-Object { $_.ValorantRatio }).Count -eq 3) 'three ratios are Riot-documented'
+# The three-state rule the generator applies.
+$fillRule = {
+    param($r, $h)
+    $w = [int]([math]::Round(($h * [double]$r.Ratio) / 2.0) * 2)
+    if ($w -lt 1280 -or $h -lt 720) { return 'too small' }
+    if (-not [bool]$r.ValorantRatio) { return 'non-standard' }
+    return 'fills'
 }
 $fourThree = @($sp.Ratios | Where-Object { $_.Name -eq '4:3' })[0]
-Assert (-not (& $vRule $fourThree 720)) 'on a 720p panel 4:3 is 960 wide, so the VALORANT flag is withdrawn'
-Assert ((& $vRule $fourThree 1080)) 'on a 1080p panel the same ratio keeps it'
+$fourteenNine = @($sp.Ratios | Where-Object { $_.Name -eq '14:9' })[0]
+Assert ((& $fillRule $fourThree 1080) -eq 'fills') '4:3 at 1080p is promised to fill'
+Assert ((& $fillRule $fourThree 720) -eq 'too small') 'on a 720p panel 4:3 is 960 wide, under the game minimum'
+Assert ((& $fillRule $fourteenNine 1080) -eq 'non-standard') '1680x1080 is offered but labelled non-standard, not promised'
+foreach ($h in 1080, 1440, 2160) {
+    $bad = @($sp.Ratios | Where-Object { $_.ValorantRatio -and (& $fillRule $_ $h) -ne 'fills' })
+    Assert ($bad.Count -eq 0) "every documented ratio still fills at ${h}p"
+}
+# Nothing at or wider than 16:9 may ever be generated: VALORANT pillarboxes those by design.
+Assert (@($sp.Ratios | Where-Object { [double]$_.Ratio -ge 1.7777 }).Count -eq 0) 'no ratio is 16:9 or wider, which the game would pillarbox'
 
 Write-Host "recommendations"
 $sync.sysinfo = [pscustomobject]@{ VBSStatus = 2; HVCIRunning = $true; IsLaptop = $true; DiskType = 'HDD'; GPUVendor = 'NVIDIA'; GPU = 'NVIDIA GeForce RTX 3060'; Is11 = $true; Build = 22631; CPU = 'AMD Ryzen 7 7800X3D'; RamGB = 16 }

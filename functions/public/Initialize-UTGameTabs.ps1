@@ -83,14 +83,17 @@ function Update-UTStretchedPresetList {
     if ($list.SelectedItem) { $selected = [string]$list.SelectedItem.Tag }
     $list.Items.Clear()
     foreach ($p in @(Get-UTStretchedPresets)) {
-        $flags = @()
-        if ($p.Valorant) { $flags += 'VALORANT ok' } else { $flags += 'Fortnite only' }
+        $flags = @('VALORANT ' + $p.ValorantFill)
         if ($p.Offered) { $flags += 'already listed' } else { $flags += 'will be created' }
+        $why = switch ($p.ValorantFill) {
+            'fills'        { ' Riot documents this ratio, so VALORANT fills the screen with Aspect Ratio Method set to Fill.' }
+            'non-standard' { ' Not one of the ratios Riot documents (4:3, 5:4, 16:9, 16:10, 21:9). VALORANT will still run it and plenty of players do, but whether it fills or shows black bars comes down to the driver scaler; this tool sets that for you and tells you if it did not take.' }
+            default        { ' Below the 1280x720 minimum VALORANT supports. Fortnite still takes it.' }
+        }
         $item = New-Object System.Windows.Controls.ListBoxItem
         $item.Content = '{0,-11} {1,-7} {2}' -f $p.Tag, $p.RatioName, ($flags -join ', ')
         $item.Tag = $p.Tag
-        $item.ToolTip = ('{0} at {1}: {2}. Common in: {3}.{4}' -f $p.RatioName, $p.Tag, $p.Label, $p.Common,
-            $(if ($p.Valorant) { '' } else { ' VALORANT will not take this one: it is either below the 1280x720 minimum the game supports or a ratio its video settings do not offer. Fortnite takes any resolution.' }))
+        $item.ToolTip = ('{0} at {1}: {2}. Common in: {3}.{4}' -f $p.RatioName, $p.Tag, $p.Label, $p.Common, $why)
         [void]$list.Items.Add($item)
     }
     foreach ($item in $list.Items) { if ([string]$item.Tag -eq $selected) { $list.SelectedItem = $item } }

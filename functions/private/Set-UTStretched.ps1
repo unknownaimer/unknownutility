@@ -75,9 +75,14 @@ function Get-UTStretchedPresets {
     .DESCRIPTION
         Heights are 1080 (fewer pixels, the reason most people do this) plus the panel's own height
         when it is taller, so a 1440p or 4K owner can stretch without dropping to 1080p. Widths are
-        rounded to an even number because odd widths upset some timings. VALORANT will not go below
-        its minimum supported resolution of 1280x720 whatever the monitor reports, so anything under
-        that is marked as Fortnite-only.
+        rounded to an even number because odd widths upset some timings.
+
+        The VALORANT column is three-state, because black bars have two different causes. Riot
+        documents support for 4:3, 5:4, 16:9, 16:10 and 21:9; those ratios fill. A ratio outside that
+        set is not refused, and plenty of players use 1680x1080, but whether it fills rests entirely
+        on the driver scaler, so it is labelled rather than promised. Anything at or wider than 16:9
+        is pillarboxed by the game itself on purpose and is never generated here. Below the game's
+        1280x720 minimum nothing works at all.
     #>
     $cur = [UT.NativeV1.Display]::GetCurrent()
     $heights = New-Object System.Collections.Generic.List[int]
@@ -87,10 +92,14 @@ function Get-UTStretchedPresets {
         foreach ($r in @($sync.configs.stretched.Ratios)) {
             $w = [int]([math]::Round(($h * [double]$r.Ratio) / 2.0) * 2)
             if ($w -ge [int]$cur.Width) { continue }
+            $fill = 'fills'
+            if ($w -lt 1280 -or $h -lt 720) { $fill = 'too small' }
+            elseif (-not [bool]$r.ValorantRatio) { $fill = 'non-standard' }
             $out.Add([pscustomobject]@{
                 Width = $w; Height = $h; Tag = ('{0}x{1}' -f $w, $h)
                 RatioName = [string]$r.Name; Label = [string]$r.Label; Common = [string]$r.Common
-                Valorant = ([bool]$r.Valorant -and $w -ge 1280 -and $h -ge 720)
+                ValorantFill = $fill
+                Valorant = ($fill -ne 'too small')
                 Offered = (Test-UTDisplayMode -Width $w -Height $h)
             })
         }
@@ -131,6 +140,26 @@ function Set-UTDisplayMode {
     $rc = [UT.NativeV1.Display]::SetMode($Width, $Height, $Hz, $true)
     if ($rc -ne 0) { throw ("Windows refused the mode {0}x{1}@{2} (DISP_CHANGE {3})" -f $Width, $Height, $Hz, $rc) }
     Write-UTLog ("desktop switched to {0}x{1}@{2}" -f $Width, $Height, $Hz)
+}
+
+function Test-UTStretchedFill {
+    <#
+    .SYNOPSIS
+        After the mode is live, says whether the picture will fill the panel or show black bars.
+    .DESCRIPTION
+        Reading the scaling immediately after SetDisplayConfig is unreliable (it answers identity even
+        while the panel stretches), so this waits for the mode to settle and only speaks up for the two
+        values that unambiguously mean bars: centred (2) and aspect-ratio-centred (4). Those come from
+        the machine default for a mode nothing has saved a preference for, which is exactly the case for
+        a resolution created seconds ago. The rest of the chain - the driver's own scaling mode and the
+        monitor's OSD - is outside any API's reach, so the message names both.
+    #>
+    Start-Sleep -Milliseconds 700
+    $s = 0
+    try { $s = [int][UT.NativeV1.Display]::GetScaling() } catch { return }
+    if ($s -ne 2 -and $s -ne 4) { return }
+    Write-UTLog 'This mode is set to keep its aspect ratio, so you will see black bars.' -Level Warn
+    Write-UTLog '  Fix it once in NVIDIA Control Panel > Display > Adjust desktop size and position: Scaling mode = Full-screen, Perform scaling on = GPU, and tick "Override the scaling mode set by games and programs". Some monitors also have their own aspect setting in the OSD that overrides the GPU.' -Level Warn
 }
 
 function Write-UTStretchedGameConfig {
@@ -194,11 +223,10 @@ function Start-UTStretched {
             }
         }
         Set-UTDisplayMode -Width $Width -Height $Height -Hz $hz
-        # Best-effort: SDC_SAVE_TO_DATABASE persists stretched for this mode. Whether the panel then
-        # fills or letterboxes is the GPU's call; on some drivers it is a one-time control-panel setting
-        # (NVIDIA: "Adjust desktop size and position" > Full-screen, Scaling performed on GPU). We do not
-        # read the scaling straight back to verify: right after SDC_APPLY that read is unreliable.
-        try { Set-UTDisplayScaling -Scaling 3 } catch { Write-UTLog ('GPU scaling could not be set to stretched (' + $_.Exception.Message + '); if you see black bars, set Full-screen scaling once in your GPU control panel') -Level Warn }
+        # Scaling is stored per mode, so a mode that has just been created carries the machine default,
+        # which on most desktops is aspect-ratio-centred: that is where the black bars come from.
+        try { Set-UTDisplayScaling -Scaling 3 } catch { Write-UTLog ('GPU scaling could not be set to stretched: ' + $_.Exception.Message) -Level Warn }
+        Test-UTStretchedFill
         $proc = ''
         switch ($Game) {
             'Fortnite' { Start-Process $sync.configs.fortnite.LaunchUri | Out-Null; $proc = $sync.configs.fortnite.GameProcess; Write-UTLog 'Fortnite launch requested through Epic' }

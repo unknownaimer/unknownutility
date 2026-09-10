@@ -1,11 +1,11 @@
 {
   "Ratios": [
-    { "Name": "4:3",   "Ratio": 1.333333, "Label": "widest player models, the most popular competitive pick", "Valorant": true,  "Common": "Fortnite, VALORANT, CS2" },
-    { "Name": "5:4",   "Ratio": 1.250000, "Label": "wider still than 4:3, the old 1280x1024 shape",           "Valorant": true,  "Common": "VALORANT, CS2" },
-    { "Name": "40:27", "Ratio": 1.481481, "Label": "the mid-range stretch most Fortnite pros land on",        "Valorant": false, "Common": "Fortnite" },
-    { "Name": "14:9",  "Ratio": 1.555556, "Label": "mild stretch that keeps detail; common in VALORANT",      "Valorant": true,  "Common": "VALORANT" },
-    { "Name": "43:27", "Ratio": 1.592593, "Label": "subtle stretch, sharper than 4:3",                        "Valorant": false, "Common": "Fortnite" },
-    { "Name": "16:10", "Ratio": 1.600000, "Label": "the gentlest stretch, closest to native",                 "Valorant": true,  "Common": "Fortnite, VALORANT" }
+    { "Name": "4:3",   "Ratio": 1.333333, "ValorantRatio": true,  "Label": "widest player models, the most popular competitive pick", "Common": "Fortnite, VALORANT, CS2" },
+    { "Name": "5:4",   "Ratio": 1.250000, "ValorantRatio": true,  "Label": "wider still than 4:3, the old 1280x1024 shape",           "Common": "VALORANT, CS2" },
+    { "Name": "40:27", "Ratio": 1.481481, "ValorantRatio": false, "Label": "the mid-range stretch most Fortnite pros land on",        "Common": "Fortnite" },
+    { "Name": "14:9",  "Ratio": 1.555556, "ValorantRatio": false, "Label": "mild stretch that keeps detail; widely used in VALORANT despite not being one of Riot's documented ratios", "Common": "VALORANT, Fortnite" },
+    { "Name": "43:27", "Ratio": 1.592593, "ValorantRatio": false, "Label": "subtle stretch, sharper than 4:3",                        "Common": "Fortnite" },
+    { "Name": "16:10", "Ratio": 1.600000, "ValorantRatio": true,  "Label": "the gentlest stretch, closest to native",                 "Common": "Fortnite, VALORANT" }
   ],
   "Games": {
     "None":     { "Content": "Desktop only (I will start the game myself)" },

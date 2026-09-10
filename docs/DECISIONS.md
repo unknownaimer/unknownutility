@@ -758,3 +758,54 @@ tournament lobbies to 16:9**, so stretched is for casual and ranked play. Epic f
 - Tier1Settings and thespike.gg on the VALORANT stretched picks in use (1280x960, 1440x1080, 1680x1050)
 - Reporting on Epic's 2019 competitive 16:9 enforcement (Kotaku, Dexerto)
 - The dev machine's own mode list and custom modes, 2026-09-10
+
+## 18. Black bars in stretched VALORANT: the actual causes (2026-09-10)
+
+s17 shipped a two-state VALORANT column, which was too confident. Black bars have **three
+independent causes** and any one of them is enough, so a single yes/no per resolution cannot be
+honest. What the research settled:
+
+**1. The game's own rule.** VALORANT supports 4:3, 5:4, 16:9, 16:10 and 21:9. Anything **at or wider
+than 16:9** it pillarboxes on purpose, capping horizontal FOV so an ultrawide owner gets no extra
+view - Riot's stated position, and nothing outside the game can change it. Everything this tab
+generates is narrower than 16:9, so this cause never fires here; the guard is a test asserting no
+ratio in `config/stretched.json` is 16:9 or wider.
+
+**2. The in-game Aspect Ratio Method.** Fill stretches, Letterbox keeps the shape and adds bars. The
+setting is only adjustable when the chosen resolution's ratio differs from the monitor's. The tool
+writes `bShouldLetterbox=False`, so this is handled.
+
+**3. The scaler, which is where it actually goes wrong.** Windows stores scaling **per mode**. A mode
+created seconds ago has no saved preference and takes the machine default, which on most desktops is
+aspect-ratio-centred - bars. That is the real reason "some resolutions bar and others do not" on the
+same PC: the ones that work are the ones that already have stretched saved against them. It is not a
+property of the aspect ratio at all. Below that sits the driver's own scaling mode (NVIDIA:
+Full-screen, performed on GPU, with "Override the scaling mode set by games and programs"), and below
+that the monitor's OSD aspect setting, which no API can reach.
+
+So the tool now:
+
+* Sets stretched scaling for the target mode **after** switching to it, saved to the database, which
+  is the case that was silently defaulting to bars before.
+* **Verifies afterwards.** `Test-UTStretchedFill` waits for the mode to settle and speaks up only for
+  the two values that unambiguously mean bars, centred (2) and aspect-ratio-centred (4). It stays
+  quiet on identity (1), because s14 established that the read straight after `SDC_APPLY` answers
+  identity even while the panel is stretching. When it does fire it names the exact NVIDIA Control
+  Panel fix and mentions the monitor OSD, because those two are outside the tool's reach.
+
+### The VALORANT column is now three-state
+
+`fills` for Riot's documented ratios (4:3, 5:4, 16:10), `non-standard` for the rest, `too small`
+below the game's 1280x720 minimum. The point of the middle state: 1680x1080 (14:9), 1600x1080 (40:27)
+and 1720x1080 (43:27) are **not** ratios Riot documents, and the honest thing is neither to promise
+they fill nor to hide them - people really do play them, one of them on the dev machine. They are
+offered, labelled, and the tooltip explains that whether they fill rests on the scaler, which the
+tool sets and then checks. Tests pin the labelling both ways: only the three documented ratios may
+claim `fills`, and 1680x1080 must come out `non-standard` rather than promised.
+
+### Sources
+
+- Riot's supported ratio set and the deliberate 21:9 pillarbox (Player Assist, Sportskeeda on the ultrawide behaviour)
+- Tier1Settings, NVIDIA stretched not filling: Full-screen scaling, performed on GPU, and the override checkbox; and that the monitor OSD can override the GPU
+- techbloat, black bars explained: the three-layer hierarchy of game, driver and monitor
+- The per-mode scaling behaviour proved on this machine in s14
